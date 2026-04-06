@@ -26,6 +26,11 @@ public class OtpService {
     @Value("${resend.api.key:}")
     private String resendApiKey;
 
+    // Pulls the verified email from application.properties. 
+    // The part after the colon is a fallback just in case you forget to add the property!
+    @Value("${app.email.sender:noreply@coffeecalc.com}")
+    private String senderEmail;
+
     // Simple ConcurrentHashMap implementation (replaces Caffeine for build stability)
     private final Map<String, OtpDetails> otpCache = new ConcurrentHashMap<>();
     
@@ -153,7 +158,8 @@ public class OtpService {
         Resend resend = new Resend(resendApiKey);
             
         CreateEmailOptions params = CreateEmailOptions.builder()
-            .from("CoffeeCalc <onboarding@resend.dev>")
+            // 🚨 Updated to use your domain variable dynamically 🚨
+            .from("CoffeeCalc <" + senderEmail + ">")
             .to(email)
             .subject("Your CoffeeCalc Verification Code")
             .html(String.format("""
@@ -183,4 +189,3 @@ public class OtpService {
         }
     }
 }
-
