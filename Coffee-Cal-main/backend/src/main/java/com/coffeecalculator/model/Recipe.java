@@ -213,4 +213,8 @@ public class Recipe {
         if (price.compareTo(new BigDecimal("200")) < 0) return "Premium";
         return "Luxury";
     }
+
+    public void calculateCosts() {
+        // Logic to sum up ingredients and set total cost
+    }
 }

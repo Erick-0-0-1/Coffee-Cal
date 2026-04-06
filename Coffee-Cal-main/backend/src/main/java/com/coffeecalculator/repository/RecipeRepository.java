@@ -98,4 +98,18 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
      */
     @Query("SELECT AVG(r.suggestedSellingPrice) FROM Recipe r")
     BigDecimal getAverageSellingPrice();
+
+    List<Recipe> findByDrinkNameContainingIgnoreCase(String name);
+
+    @Query("SELECT r FROM Recipe r ORDER BY r.drinkName ASC")
+    List<Recipe> findAllOrderedByName();
+
+    @Query(value = "SELECT * FROM recipes ORDER BY created_at DESC LIMIT ?1", nativeQuery = true)
+    List<Recipe> findTopNByDate(int n);
+
+    double calculateAverageRating();
+
+    java.time.LocalDateTime findMostRecentActivity();
+
+    java.util.Map<String, Long> getIngredientUsageCounts();
 }

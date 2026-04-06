@@ -97,7 +97,7 @@ public class AuthController {
         String username = auth.getName();
         
         return userService.findByUsername(username)
-                .map(user -> new ResponseEntity<>(new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getRoles()), HttpStatus.OK))
+                .map(user -> ResponseEntity.ok((Object) new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getRoles())))
                 .orElse(new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND));
     }
 }

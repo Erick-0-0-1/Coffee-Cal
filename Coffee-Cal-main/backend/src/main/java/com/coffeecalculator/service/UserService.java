@@ -39,13 +39,14 @@ public class UserService {
 
     // Helper method to safely initialize test users using consistent registration logic
     private void registerTestUser(String username, String password, String email, Set<Role> roles) {
-        User user = new User(
-                idGenerator.incrementAndGet(), 
-                username, 
-                passwordEncoder.encode(password), 
-                email, 
-                roles
-        );
+        User user = User.builder()
+                .id(idGenerator.incrementAndGet())
+                .username(username)
+                .passwordHash(passwordEncoder.encode(password))
+                .email(email)
+                .coffeeShop(null)
+                .roles(roles)
+                .build();
         userMap.put(username, user);
     }
 
@@ -83,13 +84,14 @@ public class UserService {
         // Safely generate unique sequential ID
         Long newId = idGenerator.incrementAndGet();
         
-        User newUser = new User(
-                newId, 
-                username, 
-                passwordEncoder.encode(rawPassword), 
-                email, 
-                Set.of(Role.USER)
-        );
+        User newUser = User.builder()
+                .id(newId)
+                .username(username)
+                .passwordHash(passwordEncoder.encode(rawPassword))
+                .email(email)
+                .coffeeShop(null)
+                .roles(Set.of(Role.USER))
+                .build();
         userMap.put(username, newUser);
         
         log.info("Successfully registered new user: {} (ID: {})", username, newId);

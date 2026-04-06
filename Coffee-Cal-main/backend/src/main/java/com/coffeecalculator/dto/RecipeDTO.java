@@ -41,4 +41,10 @@ public class RecipeDTO {
     // Additional computed fields for display
     private String complexityLevel;
     private String pricingCategory;
+    
+    // Dashboard fields
+    private String title;
+    private String primaryIngredient;
+    private Double averageRating;
+    private java.time.LocalDateTime publishedDate;
 }
