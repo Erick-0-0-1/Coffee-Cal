@@ -43,8 +43,10 @@ public class AuthService {
             throw new RuntimeException("OTP verification is required");
         }
 
-        boolean otpValid = otpService.verifyOtp(user.getEmail(), request.getOtp());
-        if (!otpValid) {
+        // 🚨 FIX APPLIED HERE 🚨
+        // Capture the OtpDetails object instead of a boolean, and check if it's null
+        var otpDetails = otpService.verifyOtp(user.getEmail(), request.getOtp());
+        if (otpDetails == null) {
             throw new RuntimeException("Invalid or expired OTP");
         }
 
