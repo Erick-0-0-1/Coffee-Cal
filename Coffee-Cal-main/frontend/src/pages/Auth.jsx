@@ -18,18 +18,18 @@ const Auth = () => {
   
   const navigate = useNavigate();
 
-  const handleSendOtp = async () => {
+  // ✅ FIX 1: Added (e) parameter and e.preventDefault()
+  const handleSendOtp = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     setLoading(true);
     setError('');
     try {
       if (isLogin) {
-        // Resend login OTP
         const otpResponse = await api.post('/auth/send-login-otp', { 
           username: email
         });
         setPendingEmail(otpResponse.data.email);
       } else {
-        // Resend registration OTP
         await api.post('/auth/send-otp', { 
           email, 
           username, 
@@ -39,7 +39,8 @@ const Auth = () => {
       }
       setShowOtpScreen(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send OTP. Please try again.');
+      // ✅ FIX 2: Use err.message instead of err.response?.data?.error
+      setError(err.message || 'Failed to send OTP. Please try again.');
     }
     setLoading(false);
   };
@@ -49,10 +50,8 @@ const Auth = () => {
     setLoading(true);
     try {
       if (isLogin) {
-        // Login OTP verification
         await handleVerifyLoginOtp();
       } else {
-        // Registration OTP verification - returns token directly
         const response = await api.post('/auth/verify-otp', { 
           email: pendingEmail, 
           otp: otpCode
@@ -62,7 +61,8 @@ const Auth = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid OTP code. Please try again.');
+      // ✅ FIX 2 applied
+      setError(err.message || 'Invalid OTP code. Please try again.');
     }
     setLoading(false);
   };
@@ -72,14 +72,14 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      // First send OTP for login verification
       const otpResponse = await api.post('/auth/send-login-otp', { 
         username: email
       });
       setPendingEmail(otpResponse.data.email);
       setShowOtpScreen(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid username or password');
+      // ✅ FIX 2 applied
+      setError(err.message || 'Invalid username or password');
     }
     setLoading(false);
   };
@@ -96,7 +96,8 @@ const Auth = () => {
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid OTP code. Please try again.');
+      // ✅ FIX 2 applied
+      setError(err.message || 'Invalid OTP code. Please try again.');
     }
     setLoading(false);
   };
@@ -154,24 +155,24 @@ const Auth = () => {
             <ArrowRight className="w-5 h-5" />
           </button>
 
-           <button
-             onClick={handleSendOtp}
-             className="w-full mt-4 text-blue-600 hover:text-blue-700 font-medium"
-           >
-             Resend code
-           </button>
-           
-           {isLogin && (
-             <button
-               onClick={() => setShowOtpScreen(false)}
-               className="w-full mt-2 text-gray-600 hover:text-gray-700 font-medium"
-             >
-               ← Back to login
-             </button>
-           )}
-         </div>
-       </div>
-     );
+          <button
+            onClick={handleSendOtp}
+            className="w-full mt-4 text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Resend code
+          </button>
+          
+          {isLogin && (
+            <button
+              onClick={() => setShowOtpScreen(false)}
+              className="w-full mt-2 text-gray-600 hover:text-gray-700 font-medium"
+            >
+              ← Back to login
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -222,6 +223,7 @@ const Auth = () => {
               </div>
             </div>
 
+            {/* ✅ FIX 1: form onSubmit now correctly calls handleSendOtp for register */}
             <form onSubmit={isLogin ? handleLogin : handleSendOtp} className="space-y-4">
               {!isLogin && (
                 <div className="relative">
@@ -242,7 +244,7 @@ const Auth = () => {
                 <input
                   type="text"
                   placeholder={isLogin ? "Username or Email" : "Email address"}
-                  value={isLogin ? email : email}
+                  value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                   required
