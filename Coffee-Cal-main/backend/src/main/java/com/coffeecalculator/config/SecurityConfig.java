@@ -28,14 +28,11 @@ public class SecurityConfig {
 
     private final JwtRequestFilter jwtRequestFilter;
     private final CustomUserDetailsService userDetailsService;
-    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
     public SecurityConfig(JwtRequestFilter jwtRequestFilter, 
-                         CustomUserDetailsService userDetailsService,
-                         OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler) {
+                         CustomUserDetailsService userDetailsService) {
         this.jwtRequestFilter = jwtRequestFilter;
         this.userDetailsService = userDetailsService;
-        this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
     }
 
     @Bean
