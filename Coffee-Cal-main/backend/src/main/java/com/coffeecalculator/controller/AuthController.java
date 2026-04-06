@@ -4,7 +4,6 @@ import com.coffeecalculator.dto.LoginRequest;
 import com.coffeecalculator.dto.OtpRequest;
 import com.coffeecalculator.dto.UserRegistrationRequest;
 import com.coffeecalculator.dto.UserResponse;
-import com.coffeecalculator.model.User;
 import com.coffeecalculator.service.AuthService;
 import com.coffeecalculator.service.OtpService;
 import com.coffeecalculator.service.UserService;
@@ -33,14 +32,14 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         if (request.getUsername() == null || request.getPassword() == null) {
-            return new ResponseEntity<>("Username and password are required.", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(Map.of("error", "Username and password are required."), HttpStatus.BAD_REQUEST);
         }
 
         try {
             Map<String, Object> response = authService.authenticate(request);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity<>("Invalid credentials provided.", HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(Map.of("error", "Invalid username or password."), HttpStatus.UNAUTHORIZED);
         }
     }
 
@@ -57,14 +56,13 @@ public class AuthController {
     @PostMapping("/send-otp")
     public ResponseEntity<?> sendOtp(@RequestBody OtpRequest request) {
         if (request.getEmail() == null) {
-            return new ResponseEntity<>("Email is required", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(Map.of("error", "Email is required"), HttpStatus.BAD_REQUEST);
         }
         
         String otp = otpService.generateOtp(request.getEmail());
         
         if (otp == null) {
-            return new ResponseEntity<>(Map.of("error", "Too many requests. Please wait 60 seconds before requesting a new code."), 
-                    HttpStatus.TOO_MANY_REQUESTS);
+            return new ResponseEntity<>(Map.of("error", "Too many requests. Please wait 60 seconds."), HttpStatus.TOO_MANY_REQUESTS);
         }
         
         otpService.sendOtpEmail(request.getEmail(), otp);
@@ -74,7 +72,12 @@ public class AuthController {
     @PostMapping("/verify-otp")
     public ResponseEntity<?> verifyOtp(@RequestBody OtpRequest request) {
         if (request.getEmail() == null || request.getOtp() == null) {
-            return new ResponseEntity<>("Email and OTP are required", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(Map.of("error", "Email and OTP are required"), HttpStatus.BAD_REQUEST);
+        }
+        
+        // STRICT GUARD: Ensure frontend sends username and password here too!
+        if (request.getUsername() == null || request.getPassword() == null) {
+            return new ResponseEntity<>(Map.of("error", "Registration details (username/password) are missing from the OTP request. Please check frontend."), HttpStatus.BAD_REQUEST);
         }
         
         try {
@@ -84,17 +87,13 @@ public class AuthController {
                 return new ResponseEntity<>(Map.of("error", "Invalid or expired OTP"), HttpStatus.BAD_REQUEST);
             }
             
-            // Create user after OTP verification
-            if (request.getUsername() != null && request.getPassword() != null) {
-                userService.registerUser(request.getUsername(), request.getEmail(), request.getPassword());
-            }
+            // Save the user securely in the database
+            userService.registerUser(request.getUsername(), request.getEmail(), request.getPassword());
             
-            return new ResponseEntity<>(Map.of("message", "OTP verified successfully"), HttpStatus.OK);
+            return new ResponseEntity<>(Map.of("message", "OTP verified and user created successfully"), HttpStatus.OK);
             
         } catch (IllegalArgumentException e) {
-            // catches "Username already taken" and "Email already registered" from UserService
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
-            
         } catch (Exception e) {
             return new ResponseEntity<>(Map.of("error", "An unexpected error occurred."), HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -110,4 +109,3 @@ public class AuthController {
                 .orElse(new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND));
     }
 }
-

@@ -38,7 +38,6 @@ public class UserService {
         }
     }
 
-    // Helper method to safely initialize test users using consistent registration logic
     private void registerTestUser(String username, String password, String email, Set<Role> roles) {
         if (!userRepository.existsByUsername(username)) {
             User user = User.builder()
@@ -63,7 +62,8 @@ public class UserService {
     public boolean authenticate(String username, String rawPassword) {
         return findByUsername(username)
                 .map(user -> {
-                    boolean isValid = passwordEncoder.matches(rawPassword, user.getPassword());
+                    // Assuming your getter is getPasswordHash() from Lombok, otherwise change to getPassword()
+                    boolean isValid = passwordEncoder.matches(rawPassword, user.getPasswordHash());
                     if (!isValid) {
                         log.debug("Authentication failed for user: {}", username);
                     }
@@ -73,13 +73,11 @@ public class UserService {
     }
 
     public User registerUser(String username, String email, String rawPassword) {
-        // Check for existing username
         if (userRepository.existsByUsername(username)) {
             log.warn("Registration failed: Username '{}' already taken.", username);
             throw new IllegalArgumentException("Username already taken.");
         }
 
-        // Check for existing email across all registered users (case-insensitive)
         if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
             log.warn("Registration failed: Email '{}' already in use.", email);
             throw new IllegalArgumentException("Email already registered.");
@@ -98,4 +96,3 @@ public class UserService {
         return newUser;
     }
 }
-

@@ -2,7 +2,6 @@ package com.coffeecalculator.service;
 
 import com.coffeecalculator.dto.LoginRequest;
 import com.coffeecalculator.dto.UserRegistrationRequest;
-import com.coffeecalculator.dto.UserResponse;
 import com.coffeecalculator.model.User;
 import com.coffeecalculator.security.JwtTokenProvider;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,32 +20,26 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserService userService;
-    private final CustomUserDetailsService userDetailsService;
     private final OtpService otpService;
 
     public AuthService(AuthenticationManager authenticationManager,
                        JwtTokenProvider jwtTokenProvider,
                        UserService userService,
-                       CustomUserDetailsService userDetailsService,
                        OtpService otpService) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.userService = userService;
-        this.userDetailsService = userDetailsService;
         this.otpService = otpService;
     }
 
     public Map<String, Object> authenticate(LoginRequest request) {
-        // Allow login with either username or email
+        // Find by username or email, allowing flexible login
         User user = userService.findByUsername(request.getUsername())
                 .or(() -> userService.findByEmail(request.getUsername()))
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        user.getUsername(),
-                        request.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword())
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -70,15 +63,14 @@ public class AuthService {
             throw new IllegalArgumentException("Email is already registered");
         }
 
-        // Generate and send OTP - don't create user yet
         String otp = otpService.generateOtp(request.getEmail());
         
         if (otp == null) {
-            throw new IllegalArgumentException("Too many requests. Please wait 60 seconds before requesting a new code.");
+            throw new IllegalArgumentException("Too many requests. Please wait 60 seconds.");
         }
         
         otpService.sendOtpEmail(request.getEmail(), otp);
         
-        return "OTP sent";
+        return "OTP sent successfully";
     }
 }
