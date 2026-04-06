@@ -25,6 +25,10 @@ public class JwtTokenProvider {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        // Add authorities/roles to the token claims
+        claims.put("roles", userDetails.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .toList());
         return generateToken(claims, userDetails.getUsername());
     }
 
