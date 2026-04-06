@@ -1,14 +1,14 @@
 package com.coffeecalculator.service;
 
-import com.resend.Resend;
-import com.resend.core.exception.ResendException;
-import com.resend.services.emails.model.CreateEmailOptions;
-import com.resend.services.emails.model.CreateEmailResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import java.security.SecureRandom;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,26 +19,28 @@ public class OtpService {
 
     private static final Logger log = LoggerFactory.getLogger(OtpService.class);
     private static final int OTP_EXPIRY_MINUTES = 5;
-    private static final int MAX_CACHE_SIZE = 10000;
     private static final int MAX_ATTEMPTS = 3; // Brute-force protection: 3 allowed guesses
     private static final int OTP_COOLDOWN_SECONDS = 60; // Rate limiting: 1 OTP per minute
 
-    @Value("${resend.api.key:}")
-    private String resendApiKey;
+    private final JavaMailSender mailSender;
 
-    // Pulls the verified email from application.properties. 
-    // The part after the colon is a fallback just in case you forget to add the property!
-    @Value("${app.email.sender:noreply@coffeecalc.com}")
+    // Pulls your Gmail address from environment variables
+    @Value("${spring.mail.username}")
     private String senderEmail;
 
-    // Simple ConcurrentHashMap implementation (replaces Caffeine for build stability)
+    // Simple ConcurrentHashMap implementation
     private final Map<String, OtpDetails> otpCache = new ConcurrentHashMap<>();
     
-    // Rate limiting cache - tracks last OTP request time per email
+    // Rate limiting cache
     private final Map<String, Long> rateLimitCache = new ConcurrentHashMap<>();
 
     // Cryptographically secure random number generator
     private final SecureRandom secureRandom = new SecureRandom();
+
+    // Inject JavaMailSender via constructor
+    public OtpService(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
 
     // Helper class to track OTP code, failed attempts, and pending registration data
     public static class OtpDetails {
@@ -78,24 +80,10 @@ public class OtpService {
         }
     }
 
-    /**
-     * Generates a cryptographically secure 6-digit OTP
-     * Implements rate limiting: 1 OTP per minute per email
-     * @param email The user's email address
-     * @return 6-digit OTP code, null if rate limited
-     */
     public String generateOtp(String email) {
         return generateOtp(email, null, null);
     }
     
-    /**
-     * Generates a cryptographically secure 6-digit OTP with pending registration details
-     * Implements rate limiting: 1 OTP per minute per email
-     * @param email The user's email address
-     * @param username Optional pending username for registration
-     * @param password Optional pending password for registration
-     * @return 6-digit OTP code, null if rate limited
-     */
     public String generateOtp(String email, String username, String password) {
         Long lastRequest = rateLimitCache.get(email);
         if (lastRequest != null) {
@@ -111,13 +99,6 @@ public class OtpService {
         return otp;
     }
 
-    /**
-     * Verifies if the provided OTP is valid for the given email
-     * Implements brute-force protection with 3 attempt limit
-     * @param email The user's email address
-     * @param otp The OTP code to verify
-     * @return OtpDetails if valid, null otherwise
-     */
     public OtpDetails verifyOtp(String email, String otp) {
         OtpDetails details = otpCache.get(email);
         
@@ -145,24 +126,18 @@ public class OtpService {
     }
 
     /**
-     * Sends OTP email via Resend API
-     * @param email Recipient email address
-     * @param otp OTP code to send
+     * Sends OTP email via Spring Mail / Gmail SMTP
      */
     public void sendOtpEmail(String email, String otp) {
-        if (resendApiKey == null || resendApiKey.isEmpty()) {
-            log.info("DEMO MODE: OTP for {} is {}", email, otp);
-            return;
-        }
-
-        Resend resend = new Resend(resendApiKey);
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             
-        CreateEmailOptions params = CreateEmailOptions.builder()
-            // 🚨 Updated to use your domain variable dynamically 🚨
-            .from("CoffeeCalc <" + senderEmail + ">")
-            .to(email)
-            .subject("Your CoffeeCalc Verification Code")
-            .html(String.format("""
+            helper.setFrom("CoffeeCalc <" + senderEmail + ">");
+            helper.setTo(email);
+            helper.setSubject("Your CoffeeCalc Verification Code");
+            
+            String htmlContent = String.format("""
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <div style="background: #1877f2; padding: 20px; text-align: center;">
                         <h2 style="color: white; margin: 0;">CoffeeCalc</h2>
@@ -177,13 +152,13 @@ public class OtpService {
                         <p style="color: #6c757d; font-size: 14px;">If you didn't request this code, you can safely ignore this email.</p>
                     </div>
                 </div>
-                """, otp))
-            .build();
-
-        try {
-            CreateEmailResponse data = resend.emails().send(params);
-            log.info("Successfully sent OTP email to {} (ID: {})", email, data.getId());
-        } catch (ResendException e) {
+                """, otp);
+                
+            helper.setText(htmlContent, true); // true indicates this is HTML
+            mailSender.send(message);
+            
+            log.info("Successfully sent OTP email to {}", email);
+        } catch (MessagingException e) {
             log.error("Failed to send OTP email to {}: {}", email, e.getMessage());
             log.info("FALLBACK: OTP for {} is {}", email, otp);
         }
