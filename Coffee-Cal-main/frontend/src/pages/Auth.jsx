@@ -59,7 +59,10 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.post('/api/auth/login', { username, password });
+      const response = await api.post('/api/auth/login', { 
+        username: isLogin ? email : username, 
+        password 
+      });
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
@@ -198,9 +201,9 @@ const Auth = () => {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
+                  type="text"
+                  placeholder={isLogin ? "Username or Email" : "Email address"}
+                  value={isLogin ? email : email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
                   required

@@ -31,20 +31,28 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        System.out.println("--- LOGIN ATTEMPT ---");
+        System.out.println("Identifier received: " + request.getUsername());
+        
         if (request.getUsername() == null || request.getPassword() == null) {
-            return new ResponseEntity<>(Map.of("error", "Username and password are required."), HttpStatus.BAD_REQUEST);
+            System.out.println("FAILED: Missing credentials in request body.");
+            return new ResponseEntity<>(Map.of("error", "Username/Email and password are required."), HttpStatus.BAD_REQUEST);
         }
 
         try {
             Map<String, Object> response = authService.authenticate(request);
+            System.out.println("SUCCESS: User authenticated.");
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
-            return new ResponseEntity<>(Map.of("error", "Invalid username or password."), HttpStatus.UNAUTHORIZED);
+            System.out.println("FAILED: Authentication rejected by Spring Security. Reason: " + e.getMessage());
+            return new ResponseEntity<>(Map.of("error", "Invalid credentials provided."), HttpStatus.UNAUTHORIZED);
         }
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody UserRegistrationRequest request) {
+        System.out.println("--- REGISTER ATTEMPT ---");
+        System.out.println("Registering email: " + request.getEmail());
         try {
             String message = authService.register(request);
             return new ResponseEntity<>(Map.of("message", message), HttpStatus.OK);
@@ -71,12 +79,18 @@ public class AuthController {
 
     @PostMapping("/verify-otp")
     public ResponseEntity<?> verifyOtp(@RequestBody OtpRequest request) {
+        System.out.println("--- OTP VERIFICATION ATTEMPT ---");
+        System.out.println("Email: " + request.getEmail());
+        System.out.println("OTP: " + request.getOtp());
+        System.out.println("Username provided: " + request.getUsername());
+        
         if (request.getEmail() == null || request.getOtp() == null) {
             return new ResponseEntity<>(Map.of("error", "Email and OTP are required"), HttpStatus.BAD_REQUEST);
         }
         
-        // STRICT GUARD: Ensure frontend sends username and password here too!
+        // If your frontend only sends {email, otp}, this guard will trip! 
         if (request.getUsername() == null || request.getPassword() == null) {
+            System.out.println("FAILED: Frontend did not send username/password along with the OTP.");
             return new ResponseEntity<>(Map.of("error", "Registration details (username/password) are missing from the OTP request. Please check frontend."), HttpStatus.BAD_REQUEST);
         }
         
@@ -84,11 +98,13 @@ public class AuthController {
             boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp());
             
             if (!valid) {
+                System.out.println("FAILED: OTP is invalid or expired.");
                 return new ResponseEntity<>(Map.of("error", "Invalid or expired OTP"), HttpStatus.BAD_REQUEST);
             }
             
             // Save the user securely in the database
             userService.registerUser(request.getUsername(), request.getEmail(), request.getPassword());
+            System.out.println("SUCCESS: User successfully saved to the database!");
             
             return new ResponseEntity<>(Map.of("message", "OTP verified and user created successfully"), HttpStatus.OK);
             
