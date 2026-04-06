@@ -92,7 +92,7 @@ public class AuthService {
             throw new IllegalArgumentException("Email is already registered");
         }
 
-        String otp = otpService.generateOtp(request.getEmail());
+        String otp = otpService.generateOtp(request.getEmail(), request.getUsername(), request.getPassword());
         
         if (otp == null) {
             throw new IllegalArgumentException("Too many requests. Please wait 60 seconds.");
@@ -101,5 +101,25 @@ public class AuthService {
         otpService.sendOtpEmail(request.getEmail(), otp);
         
         return "OTP sent successfully";
+    }
+    
+    /**
+     * Authenticate user without OTP verification for post-registration auto-login
+     */
+    public Map<String, Object> authenticateForRegistration(LoginRequest request, User user) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword())
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        String token = jwtTokenProvider.generateToken(userDetails);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("username", userDetails.getUsername());
+        response.put("roles", userDetails.getAuthorities());
+        
+        return response;
     }
 }

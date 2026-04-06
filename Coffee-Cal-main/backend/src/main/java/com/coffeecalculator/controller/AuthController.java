@@ -4,6 +4,7 @@ import com.coffeecalculator.dto.LoginRequest;
 import com.coffeecalculator.dto.OtpRequest;
 import com.coffeecalculator.dto.UserRegistrationRequest;
 import com.coffeecalculator.dto.UserResponse;
+import com.coffeecalculator.model.User;
 import com.coffeecalculator.service.AuthService;
 import com.coffeecalculator.service.OtpService;
 import com.coffeecalculator.service.UserService;
@@ -82,7 +83,21 @@ public class AuthController {
             return new ResponseEntity<>(Map.of("error", "Email is required"), HttpStatus.BAD_REQUEST);
         }
         
-        String otp = otpService.generateOtp(request.getEmail());
+        // Check if username/password are provided (registration flow)
+        String otp;
+        if (request.getUsername() != null && request.getPassword() != null) {
+            // Check for existing users first
+            if (userService.findByUsername(request.getUsername()).isPresent()) {
+                throw new IllegalArgumentException("Username is already taken");
+            }
+            if (userService.findByEmail(request.getEmail()).isPresent()) {
+                throw new IllegalArgumentException("Email is already registered");
+            }
+            
+            otp = otpService.generateOtp(request.getEmail(), request.getUsername(), request.getPassword());
+        } else {
+            otp = otpService.generateOtp(request.getEmail());
+        }
         
         if (otp == null) {
             return new ResponseEntity<>(Map.of("error", "Too many requests. Please wait 60 seconds."), HttpStatus.TOO_MANY_REQUESTS);
@@ -97,31 +112,37 @@ public class AuthController {
         System.out.println("--- OTP VERIFICATION ATTEMPT ---");
         System.out.println("Email: " + request.getEmail());
         System.out.println("OTP: " + request.getOtp());
-        System.out.println("Username provided: " + request.getUsername());
         
         if (request.getEmail() == null || request.getOtp() == null) {
             return new ResponseEntity<>(Map.of("error", "Email and OTP are required"), HttpStatus.BAD_REQUEST);
         }
         
-        // If your frontend only sends {email, otp}, this guard will trip! 
-        if (request.getUsername() == null || request.getPassword() == null) {
-            System.out.println("FAILED: Frontend did not send username/password along with the OTP.");
-            return new ResponseEntity<>(Map.of("error", "Registration details (username/password) are missing from the OTP request. Please check frontend."), HttpStatus.BAD_REQUEST);
-        }
-        
         try {
-            boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp());
+            OtpService.OtpDetails details = otpService.verifyOtp(request.getEmail(), request.getOtp());
             
-            if (!valid) {
+            if (details == null) {
                 System.out.println("FAILED: OTP is invalid or expired.");
                 return new ResponseEntity<>(Map.of("error", "Invalid or expired OTP"), HttpStatus.BAD_REQUEST);
             }
             
-            // Save the user securely in the database
-            userService.registerUser(request.getUsername(), request.getEmail(), request.getPassword());
-            System.out.println("SUCCESS: User successfully saved to the database!");
+            // If this is a registration OTP with pending user details
+            if (details.getUsername() != null && details.getPassword() != null) {
+                // Save the user securely in the database
+                User user = userService.registerUser(details.getUsername(), request.getEmail(), details.getPassword());
+                System.out.println("SUCCESS: User successfully saved to the database!");
+                
+                // Auto-login the user after registration
+                LoginRequest loginRequest = new LoginRequest();
+                loginRequest.setUsername(details.getUsername());
+                loginRequest.setPassword(details.getPassword());
+                loginRequest.setOtp(request.getOtp());
+                
+                Map<String, Object> authResponse = authService.authenticateForRegistration(loginRequest, user);
+                return new ResponseEntity<>(authResponse, HttpStatus.OK);
+            }
             
-            return new ResponseEntity<>(Map.of("message", "OTP verified and user created successfully"), HttpStatus.OK);
+            // For login OTP verification (no user creation)
+            return new ResponseEntity<>(Map.of("message", "OTP verified successfully"), HttpStatus.OK);
             
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);

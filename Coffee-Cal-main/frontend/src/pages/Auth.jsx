@@ -52,15 +52,13 @@ const Auth = () => {
         // Login OTP verification
         await handleVerifyLoginOtp();
       } else {
-        // Registration OTP verification
-        await api.post('/auth/verify-otp', { 
+        // Registration OTP verification - returns token directly
+        const response = await api.post('/auth/verify-otp', { 
           email: pendingEmail, 
-          otp: otpCode,
-          username,
-          password 
+          otp: otpCode
         });
-        const response = await api.post('/auth/login', { username, password, otp: otpCode });
         localStorage.setItem('token', response.data.token);
+        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
         navigate('/dashboard');
       }
     } catch (err) {

@@ -35,18 +35,37 @@ public class OtpService {
     // Cryptographically secure random number generator
     private final SecureRandom secureRandom = new SecureRandom();
 
-    // Helper class to track OTP code and failed attempts atomically
-    private static class OtpDetails {
+    // Helper class to track OTP code, failed attempts, and pending registration data
+    public static class OtpDetails {
         private final String code;
         private final AtomicInteger attempts;
+        private final String username;
+        private final String password;
 
         public OtpDetails(String code) {
             this.code = code;
             this.attempts = new AtomicInteger(0);
+            this.username = null;
+            this.password = null;
+        }
+
+        public OtpDetails(String code, String username, String password) {
+            this.code = code;
+            this.attempts = new AtomicInteger(0);
+            this.username = username;
+            this.password = password;
         }
 
         public String getCode() {
             return code;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public String getPassword() {
+            return password;
         }
 
         public int incrementAndGetAttempts() {
@@ -61,6 +80,18 @@ public class OtpService {
      * @return 6-digit OTP code, null if rate limited
      */
     public String generateOtp(String email) {
+        return generateOtp(email, null, null);
+    }
+    
+    /**
+     * Generates a cryptographically secure 6-digit OTP with pending registration details
+     * Implements rate limiting: 1 OTP per minute per email
+     * @param email The user's email address
+     * @param username Optional pending username for registration
+     * @param password Optional pending password for registration
+     * @return 6-digit OTP code, null if rate limited
+     */
+    public String generateOtp(String email, String username, String password) {
         Long lastRequest = rateLimitCache.get(email);
         if (lastRequest != null) {
             long secondsLeft = OTP_COOLDOWN_SECONDS - (System.currentTimeMillis() - lastRequest) / 1000;
@@ -69,7 +100,7 @@ public class OtpService {
         }
 
         String otp = String.format("%06d", secureRandom.nextInt(1000000));
-        otpCache.put(email, new OtpDetails(otp));
+        otpCache.put(email, new OtpDetails(otp, username, password));
         rateLimitCache.put(email, System.currentTimeMillis());
         log.debug("Generated OTP for {} (expires in {} minutes)", email, OTP_EXPIRY_MINUTES);
         return otp;
@@ -80,20 +111,20 @@ public class OtpService {
      * Implements brute-force protection with 3 attempt limit
      * @param email The user's email address
      * @param otp The OTP code to verify
-     * @return true if valid, false otherwise
+     * @return OtpDetails if valid, null otherwise
      */
-    public boolean verifyOtp(String email, String otp) {
+    public OtpDetails verifyOtp(String email, String otp) {
         OtpDetails details = otpCache.get(email);
         
         if (details == null) {
             log.debug("OTP verification failed for {}: No OTP found or expired", email);
-            return false;
+            return null;
         }
 
         if (details.getCode().equals(otp)) {
             otpCache.remove(email);
             log.debug("OTP verified successfully for {}", email);
-            return true;
+            return details;
         } else {
             int currentAttempts = details.incrementAndGetAttempts();
             
@@ -104,7 +135,7 @@ public class OtpService {
                 log.debug("OTP verification failed for {}: Code mismatch. Attempt {} of {}", 
                         email, currentAttempts, MAX_ATTEMPTS);
             }
-            return false;
+            return null;
         }
     }
 
