@@ -46,18 +46,18 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     // EXISTING METHODS (UPDATED FOR MULTI-TENANCY)
     // ==============================================
 
-    @Query("SELECT r FROM Recipe r WHERE r.coffeeShop.id = :shopId AND r.suggestedSellingPrice BETWEEN :minPrice AND :maxPrice")
-    List<Recipe> findByCoffeeShopIdAndPriceRange(
-        @Param("shopId") Long shopId,
-        @Param("minPrice") BigDecimal minPrice,
-        @Param("maxPrice") BigDecimal maxPrice
-    );
+//    @Query("SELECT r FROM Recipe r WHERE r.coffeeShop.id = :shopId AND r.suggestedSellingPrice BETWEEN :minPrice AND :maxPrice")
+//    List<Recipe> findByCoffeeShopIdAndPriceRange(
+//        @Param("shopId") Long shopId,
+//        @Param("minPrice") BigDecimal minPrice,
+//        @Param("maxPrice") BigDecimal maxPrice
+//    );
 
-    @Query("SELECT r FROM Recipe r WHERE r.coffeeShop.id = :shopId AND r.actualMarginPercent >= :minMargin")
-    List<Recipe> findByCoffeeShopIdAndMinimumMargin(
-        @Param("shopId") Long shopId,
-        @Param("minMargin") BigDecimal minMargin
-    );
+//    @Query("SELECT r FROM Recipe r WHERE r.coffeeShop.id = :shopId AND r.actualMarginPercent >= :minMargin")
+//    List<Recipe> findByCoffeeShopIdAndMinimumMargin(
+//        @Param("shopId") Long shopId,
+//        @Param("minMargin") BigDecimal minMargin
+//    );
 
     @Query("SELECT COUNT(r) FROM Recipe r WHERE r.coffeeShop.id = :shopId")
     long countByCoffeeShopId(Long shopId);
@@ -76,15 +76,15 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     /**
      * Find recipes with selling price in range
      */
-    @Query("SELECT r FROM Recipe r WHERE r.suggestedSellingPrice BETWEEN :minPrice AND :maxPrice")
-    List<Recipe> findByPriceRange(@Param("minPrice") BigDecimal minPrice,
-                                  @Param("maxPrice") BigDecimal maxPrice);
+//    @Query("SELECT r FROM Recipe r WHERE r.suggestedSellingPrice BETWEEN :minPrice AND :maxPrice")
+//    List<Recipe> findByPriceRange(@Param("minPrice") BigDecimal minPrice,
+//                                  @Param("maxPrice") BigDecimal maxPrice);
 
     /**
      * Find recipes with margin greater than specified
      */
-    @Query("SELECT r FROM Recipe r WHERE r.actualMarginPercent >= :minMargin")
-    List<Recipe> findByMinimumMargin(@Param("minMargin") BigDecimal minMargin);
+//    @Query("SELECT r FROM Recipe r WHERE r.actualMarginPercent >= :minMargin")
+//    List<Recipe> findByMinimumMargin(@Param("minMargin") BigDecimal minMargin);
 
     /**
      * Check if recipe name exists
