@@ -5,11 +5,11 @@ import lombok.*;
 import java.util.HashSet;
 import java.util.Set;
 
-@Getter
-@Setter
+@Entity
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
+@Builder
 @Table(name = "app_users")
 public class User {
 
