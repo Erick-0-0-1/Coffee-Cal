@@ -5,7 +5,6 @@ import com.coffeecalculator.model.Role;
 import com.coffeecalculator.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import jakarta.annotation.PostConstruct;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -23,38 +22,34 @@ public class UserService {
     public UserService(PasswordEncoder passwordEncoder, UserRepository userRepository) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
-    }
-
-    @PostConstruct
-    public void init() {
         initializeTestUsers();
     }
 
     private void initializeTestUsers() {
-        if (userRepository.count() == 0) {
-            registerTestUser("admin", "admin123", "admin@coffeecalculator.com", Set.of(Role.ADMIN));
-            registerTestUser("user", "user123", "user@coffeecalculator.com", Set.of(Role.USER));
-            log.info("Test users initialized successfully.");
+        if (userRepository.findByUsername("admin").isEmpty()) {
+            seedUser("admin", "admin123", "admin@coffeecalculator.com", Set.of(Role.OWNER));
+            log.info("Seeded test user: admin");
+        }
+        if (userRepository.findByUsername("user").isEmpty()) {
+            seedUser("user", "user123", "user@coffeecalculator.com", Set.of(Role.BARISTA));
+            log.info("Seeded test user: user");
         }
     }
 
-    private void registerTestUser(String username, String password, String email, Set<Role> roles) {
-        if (!userRepository.existsByUsername(username)) {
-            User user = User.builder()
-                    .username(username)
-                    .passwordHash(passwordEncoder.encode(password))
-                    .email(email)
-                    .coffeeShop(null)
-                    .roles(roles)
-                    .build();
-            userRepository.save(user);
-        }
+    private void seedUser(String username, String password, String email, Set<Role> roles) {
+        User user = new User();
+        user.setUsername(username);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setEmail(email);
+        user.setRoles(roles);
+        userRepository.save(user);
     }
 
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
+    // ← ADDED: required by CustomUserDetailsService for email-based lookup
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmailIgnoreCase(email);
     }
@@ -62,7 +57,6 @@ public class UserService {
     public boolean authenticate(String username, String rawPassword) {
         return findByUsername(username)
                 .map(user -> {
-                    // Assuming your getter is getPasswordHash() from Lombok, otherwise change to getPassword()
                     boolean isValid = passwordEncoder.matches(rawPassword, user.getPasswordHash());
                     if (!isValid) {
                         log.debug("Authentication failed for user: {}", username);
@@ -73,7 +67,7 @@ public class UserService {
     }
 
     public User registerUser(String username, String email, String rawPassword) {
-        if (userRepository.existsByUsername(username)) {
+        if (userRepository.findByUsername(username).isPresent()) {
             log.warn("Registration failed: Username '{}' already taken.", username);
             throw new IllegalArgumentException("Username already taken.");
         }
@@ -82,17 +76,15 @@ public class UserService {
             log.warn("Registration failed: Email '{}' already in use.", email);
             throw new IllegalArgumentException("Email already registered.");
         }
-        
-        User newUser = User.builder()
-                .username(username)
-                .passwordHash(passwordEncoder.encode(rawPassword))
-                .email(email)
-                .coffeeShop(null)
-                .roles(Set.of(Role.USER))
-                .build();
-        
-        userRepository.save(newUser);
-        log.info("Successfully registered new user: {} (ID: {})", username, newUser.getId());
-        return newUser;
+
+        User newUser = new User();
+        newUser.setUsername(username);
+        newUser.setPasswordHash(passwordEncoder.encode(rawPassword));
+        newUser.setEmail(email);
+        newUser.setRoles(Set.of(Role.BARISTA));
+
+        User saved = userRepository.save(newUser);
+        log.info("Successfully registered new user: {} (ID: {})", username, saved.getId());
+        return saved;
     }
 }
