@@ -43,8 +43,8 @@ public class AuthController {
             Map<String, Object> response = authService.authenticate(request);
             System.out.println("SUCCESS: User authenticated.");
             return new ResponseEntity<>(response, HttpStatus.OK);
-        } catch (Exception e) {
-            System.out.println("FAILED: Authentication rejected by Spring Security. Reason: " + e.getMessage());
+        } catch (RuntimeException e) {
+            System.out.println("FAILED: Authentication rejected. Reason: " + e.getMessage());
             return new ResponseEntity<>(Map.of("error", "Invalid credentials provided."), HttpStatus.UNAUTHORIZED);
         }
     }
