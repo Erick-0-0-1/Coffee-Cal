@@ -37,9 +37,14 @@ public class AuthService {
     }
 
     public Map<String, Object> authenticate(LoginRequest request) {
+        // Allow login with either username or email
+        User user = userService.findByUsername(request.getUsername())
+                .or(() -> userService.findByEmail(request.getUsername()))
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        user.getUsername(),
                         request.getPassword()
                 )
         );

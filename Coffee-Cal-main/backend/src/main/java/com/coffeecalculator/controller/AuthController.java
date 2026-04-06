@@ -77,18 +77,27 @@ public class AuthController {
             return new ResponseEntity<>("Email and OTP are required", HttpStatus.BAD_REQUEST);
         }
         
-        boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp());
-        
-        if (!valid) {
-            return new ResponseEntity<>("Invalid or expired OTP", HttpStatus.BAD_REQUEST);
+        try {
+            boolean valid = otpService.verifyOtp(request.getEmail(), request.getOtp());
+            
+            if (!valid) {
+                return new ResponseEntity<>(Map.of("error", "Invalid or expired OTP"), HttpStatus.BAD_REQUEST);
+            }
+            
+            // Create user after OTP verification
+            if (request.getUsername() != null && request.getPassword() != null) {
+                userService.registerUser(request.getUsername(), request.getEmail(), request.getPassword());
+            }
+            
+            return new ResponseEntity<>(Map.of("message", "OTP verified successfully"), HttpStatus.OK);
+            
+        } catch (IllegalArgumentException e) {
+            // catches "Username already taken" and "Email already registered" from UserService
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
+            
+        } catch (Exception e) {
+            return new ResponseEntity<>(Map.of("error", "An unexpected error occurred."), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        
-        // Create user after OTP verification
-        if (request.getUsername() != null && request.getPassword() != null) {
-            userService.registerUser(request.getUsername(), request.getEmail(), request.getPassword());
-        }
-        
-        return new ResponseEntity<>(Map.of("message", "OTP verified successfully"), HttpStatus.OK);
     }
 
     @GetMapping("/me")
