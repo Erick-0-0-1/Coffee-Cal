@@ -45,7 +45,22 @@ public class AuthController {
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (RuntimeException e) {
             System.out.println("FAILED: Authentication rejected. Reason: " + e.getMessage());
-            return new ResponseEntity<>(Map.of("error", "Invalid credentials provided."), HttpStatus.UNAUTHORIZED);
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.UNAUTHORIZED);
+        }
+    }
+    
+    @PostMapping("/send-login-otp")
+    public ResponseEntity<?> sendLoginOtp(@RequestBody Map<String, String> request) {
+        String identifier = request.get("username");
+        if (identifier == null) {
+            return new ResponseEntity<>(Map.of("error", "Username/Email is required"), HttpStatus.BAD_REQUEST);
+        }
+        
+        try {
+            String email = authService.sendLoginOtp(identifier);
+            return new ResponseEntity<>(Map.of("message", "OTP sent successfully", "email", email), HttpStatus.OK);
+        } catch (RuntimeException e) {
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
         }
     }
 

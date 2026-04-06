@@ -22,12 +22,21 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/auth/send-otp', { 
-        email, 
-        username, 
-        password 
-      });
-      setPendingEmail(email);
+      if (isLogin) {
+        // Resend login OTP
+        const otpResponse = await api.post('/auth/send-login-otp', { 
+          username: email
+        });
+        setPendingEmail(otpResponse.data.email);
+      } else {
+        // Resend registration OTP
+        await api.post('/auth/send-otp', { 
+          email, 
+          username, 
+          password 
+        });
+        setPendingEmail(email);
+      }
       setShowOtpScreen(true);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to send OTP. Please try again.');
@@ -39,15 +48,21 @@ const Auth = () => {
     const otpCode = otp.join('');
     setLoading(true);
     try {
-      await api.post('/auth/verify-otp', { 
-        email: pendingEmail, 
-        otp: otpCode,
-        username,
-        password 
-      });
-      const response = await api.post('/auth/login', { username, password });
-      localStorage.setItem('token', response.data.token);
-      navigate('/dashboard');
+      if (isLogin) {
+        // Login OTP verification
+        await handleVerifyLoginOtp();
+      } else {
+        // Registration OTP verification
+        await api.post('/auth/verify-otp', { 
+          email: pendingEmail, 
+          otp: otpCode,
+          username,
+          password 
+        });
+        const response = await api.post('/auth/login', { username, password, otp: otpCode });
+        localStorage.setItem('token', response.data.token);
+        navigate('/dashboard');
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid OTP code. Please try again.');
     }
@@ -59,14 +74,31 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
+      // First send OTP for login verification
+      const otpResponse = await api.post('/auth/send-login-otp', { 
+        username: email
+      });
+      setPendingEmail(otpResponse.data.email);
+      setShowOtpScreen(true);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Invalid username or password');
+    }
+    setLoading(false);
+  };
+  
+  const handleVerifyLoginOtp = async () => {
+    const otpCode = otp.join('');
+    setLoading(true);
+    try {
       const response = await api.post('/auth/login', { 
-        username: isLogin ? email : username, 
-        password 
+        username: email, 
+        password,
+        otp: otpCode
       });
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data || err.response?.data?.error || 'Invalid username or password');
+      setError(err.response?.data?.error || 'Invalid OTP code. Please try again.');
     }
     setLoading(false);
   };
@@ -124,15 +156,24 @@ const Auth = () => {
             <ArrowRight className="w-5 h-5" />
           </button>
 
-          <button
-            onClick={handleSendOtp}
-            className="w-full mt-4 text-blue-600 hover:text-blue-700 font-medium"
-          >
-            Resend code
-          </button>
-        </div>
-      </div>
-    );
+           <button
+             onClick={handleSendOtp}
+             className="w-full mt-4 text-blue-600 hover:text-blue-700 font-medium"
+           >
+             Resend code
+           </button>
+           
+           {isLogin && (
+             <button
+               onClick={() => setShowOtpScreen(false)}
+               className="w-full mt-2 text-gray-600 hover:text-gray-700 font-medium"
+             >
+               ← Back to login
+             </button>
+           )}
+         </div>
+       </div>
+     );
   }
 
   return (

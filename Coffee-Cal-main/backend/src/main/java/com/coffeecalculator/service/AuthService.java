@@ -38,6 +38,16 @@ public class AuthService {
                 .or(() -> userService.findByEmail(request.getUsername()))
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
+        // Verify OTP is provided and valid
+        if (request.getOtp() == null || request.getOtp().isEmpty()) {
+            throw new RuntimeException("OTP verification is required");
+        }
+
+        boolean otpValid = otpService.verifyOtp(user.getEmail(), request.getOtp());
+        if (!otpValid) {
+            throw new RuntimeException("Invalid or expired OTP");
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword())
         );
@@ -52,6 +62,25 @@ public class AuthService {
         response.put("roles", userDetails.getAuthorities());
         
         return response;
+    }
+    
+    /**
+     * Send OTP for login verification
+     * @param identifier username or email
+     * @return email address OTP was sent to
+     */
+    public String sendLoginOtp(String identifier) {
+        User user = userService.findByUsername(identifier)
+                .or(() -> userService.findByEmail(identifier))
+                .orElseThrow(() -> new RuntimeException("User not found"));
+                
+        String otp = otpService.generateOtp(user.getEmail());
+        if (otp == null) {
+            throw new RuntimeException("Too many requests. Please wait 60 seconds.");
+        }
+        
+        otpService.sendOtpEmail(user.getEmail(), otp);
+        return user.getEmail();
     }
 
     public String register(UserRegistrationRequest request) {
