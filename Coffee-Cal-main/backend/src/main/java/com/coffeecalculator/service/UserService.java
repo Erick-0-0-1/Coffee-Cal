@@ -26,7 +26,8 @@ public class UserService {
     // Thread-safe atomic ID generator - prevents duplicate IDs
     private final AtomicLong idGenerator = new AtomicLong(0);
 
-    public UserService(PasswordEncoder passwordEncoder) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public UserService(@org.springframework.context.annotation.Lazy PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
         initializeTestUsers();
     }
