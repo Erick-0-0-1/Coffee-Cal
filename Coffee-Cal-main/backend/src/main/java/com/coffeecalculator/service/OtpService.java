@@ -1,7 +1,9 @@
 package com.coffeecalculator.service;
 
 import com.resend.Resend;
-import com.resend.services.emails.model.SendEmailRequest;
+import com.resend.core.exception.ResendException;
+import com.resend.services.emails.model.CreateEmailOptions;
+import com.resend.services.emails.model.CreateEmailResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -117,34 +119,34 @@ public class OtpService {
             return;
         }
 
-        try {
-            Resend resend = new Resend(resendApiKey);
+        Resend resend = new Resend(resendApiKey);
             
-            SendEmailRequest request = SendEmailRequest.builder()
-                .from("CoffeeCalc <onboarding@resend.dev>")
-                .to(email)
-                .subject("Your CoffeeCalc Verification Code")
-                .html(String.format("""
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <div style="background: #1877f2; padding: 20px; text-align: center;">
-                            <h2 style="color: white; margin: 0;">CoffeeCalc</h2>
-                        </div>
-                        <div style="padding: 30px; background: #f8f9fa;">
-                            <h3>Welcome to CoffeeCalc!</h3>
-                            <p>Your verification code is:</p>
-                            <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                                <h1 style="font-size: 48px; font-weight: bold; color: #1877f2; letter-spacing: 12px; margin: 0;">%s</h1>
-                            </div>
-                            <p>This code will expire in 5 minutes.</p>
-                            <p style="color: #6c757d; font-size: 14px;">If you didn't request this code, you can safely ignore this email.</p>
-                        </div>
+        CreateEmailOptions params = CreateEmailOptions.builder()
+            .from("CoffeeCalc <onboarding@resend.dev>")
+            .to(email)
+            .subject("Your CoffeeCalc Verification Code")
+            .html(String.format("""
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #1877f2; padding: 20px; text-align: center;">
+                        <h2 style="color: white; margin: 0;">CoffeeCalc</h2>
                     </div>
-                    """, otp))
-                .build();
+                    <div style="padding: 30px; background: #f8f9fa;">
+                        <h3>Welcome to CoffeeCalc!</h3>
+                        <p>Your verification code is:</p>
+                        <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                            <h1 style="font-size: 48px; font-weight: bold; color: #1877f2; letter-spacing: 12px; margin: 0;">%s</h1>
+                        </div>
+                        <p>This code will expire in 5 minutes.</p>
+                        <p style="color: #6c757d; font-size: 14px;">If you didn't request this code, you can safely ignore this email.</p>
+                    </div>
+                </div>
+                """, otp))
+            .build();
 
-            resend.emails().send(request);
-            log.info("Successfully sent OTP email to {}", email);
-        } catch (Exception e) {
+        try {
+            CreateEmailResponse data = resend.emails().send(params);
+            log.info("Successfully sent OTP email to {} (ID: {})", email, data.getId());
+        } catch (ResendException e) {
             log.error("Failed to send OTP email to {}: {}", email, e.getMessage());
             log.info("FALLBACK: OTP for {} is {}", email, otp);
         }
