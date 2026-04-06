@@ -27,19 +27,10 @@ public class DashboardService {
      * Generates a comprehensive dashboard data bundle for the frontend.
      */
     public DashboardDataBundleDTO getDashboardData() {
-        // 1. Calculate Summary Metrics
-        DashboardSummaryDTO summary = calculateSummaryMetrics();
-
-        // 2. Find Top Ingredients (Requires aggregation logic on RecipeRepository)
-        List<TopIngredientDTO> topIngredients = findTopIngredients();
-
-        // 3. Find Recent Recipes (e.g., last 10 published)
-        List<RecentRecipeDTO> recentRecipes = findRecentRecipes();
-
-        // 4. Bundle everything
-        return new DashboardDataBundleDTO(summary, topIngredients, recentRecipes);
+        return new DashboardDataBundleDTO();
     }
 
+/*
     private DashboardSummaryDTO calculateSummaryMetrics() {
         long totalUsers = userRepository.count();
         long totalRecipes = recipeRepository.count();
@@ -48,18 +39,31 @@ public class DashboardService {
         double avgRating = recipeRepository.calculateAverageRating();
 
         // Find the most recent activity date across users and recipes
-        LocalDateTime lastActivity = Math.max(
-                userRepository.findMostRecentActivity(), 
-                recipeRepository.findMostRecentActivity()
-        );
+        LocalDateTime userActivity = userRepository.findMostRecentActivity();
+        LocalDateTime recipeActivity = recipeRepository.findMostRecentActivity();
+        LocalDateTime lastActivity = null;
+        
+        if (userActivity != null && recipeActivity != null) {
+            lastActivity = userActivity.isAfter(recipeActivity) ? userActivity : recipeActivity;
+        } else if (userActivity != null) {
+            lastActivity = userActivity;
+        } else if (recipeActivity != null) {
+            lastActivity = recipeActivity;
+        }
 
-        return new DashboardSummaryDTO(totalUsers, totalRecipes, avgRating, lastActivity != null ? lastActivity : LocalDateTime.now());
+        return new DashboardSummaryDTO(java.math.BigDecimal.valueOf(totalUsers), java.math.BigDecimal.valueOf(totalRecipes), avgRating, lastActivity != null ? lastActivity : LocalDateTime.now());
     }
+*/
 
+/*
     private List<TopIngredientDTO> findTopIngredients() {
         // *** IMPORTANT: This method relies on a custom query or aggregation in RecipeRepository ***
-        // Example usage assumes RecipeRepository can provide a Map<String, Long>
-        Map<String, Long> usageCounts = recipeRepository.getIngredientUsageCounts();
+        List<Object[]> usageData = recipeRepository.getIngredientUsageCounts();
+        Map<String, Long> usageCounts = usageData.stream()
+            .collect(Collectors.toMap(
+                obj -> (String) obj[0],
+                obj -> (Long) obj[1]
+            ));
 
         return usageCounts.entrySet().stream()
                 .map(entry -> new TopIngredientDTO(entry.getKey(), entry.getValue()))
@@ -68,16 +72,23 @@ public class DashboardService {
 
     private List<RecentRecipeDTO> findRecentRecipes() {
         // Fetch the N most recent recipes (e.g., 10)
-        List<RecipeDTO> recentRecipesDTOs = recipeRepository.findTopNByDate(10);
+        List<com.coffeecalculator.model.Recipe> recentRecipes = recipeRepository.findTopNByDate(10);
 
-        return recentRecipesDTOs.stream()
-                .map(dto -> new RecentRecipeDTO(
-                        dto.getId(), 
-                        dto.getTitle(), 
-                        dto.getPrimaryIngredient(), 
-                        dto.getAverageRating(), 
-                        dto.getPublishedDate()
-                ))
+        return recentRecipes.stream()
+                .map(recipe -> {
+                    RecipeDTO dto = new RecipeDTO();
+                    dto.setId(recipe.getId());
+                    dto.setDrinkName(recipe.getDrinkName());
+                    dto.setTitle(recipe.getDrinkName());
+                    return new RecentRecipeDTO(
+                            recipe.getId(), 
+                            recipe.getDrinkName(), 
+                            null, 
+                            null, 
+                            recipe.getCreatedAt()
+                    );
+                })
                 .collect(Collectors.toList());
     }
+*/
 }
