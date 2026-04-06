@@ -28,11 +28,14 @@ public class SecurityConfig {
 
     private final JwtRequestFilter jwtRequestFilter;
     private final CustomUserDetailsService userDetailsService;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
     public SecurityConfig(JwtRequestFilter jwtRequestFilter, 
-                         CustomUserDetailsService userDetailsService) {
+                         CustomUserDetailsService userDetailsService,
+                         OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler) {
         this.jwtRequestFilter = jwtRequestFilter;
         this.userDetailsService = userDetailsService;
+        this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
     }
 
     @Bean
@@ -53,9 +56,6 @@ public class SecurityConfig {
                 .requestMatchers("/api/shop/**").hasRole("OWNER")
                 
                 .anyRequest().authenticated()
-            )
-            .oauth2Login(oauth2 -> oauth2
-                .successHandler(oAuth2LoginSuccessHandler)
             )
             .headers(headers -> headers.frameOptions(frame -> frame.disable()))
             .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
