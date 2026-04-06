@@ -34,7 +34,7 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         System.out.println("--- LOGIN ATTEMPT ---");
         System.out.println("Identifier received: " + request.getUsername());
-        
+
         if (request.getUsername() == null || request.getPassword() == null) {
             System.out.println("FAILED: Missing credentials in request body.");
             return new ResponseEntity<>(Map.of("error", "Username/Email and password are required."), HttpStatus.BAD_REQUEST);
@@ -49,14 +49,14 @@ public class AuthController {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.UNAUTHORIZED);
         }
     }
-    
+
     @PostMapping("/send-login-otp")
     public ResponseEntity<?> sendLoginOtp(@RequestBody Map<String, String> request) {
         String identifier = request.get("username");
         if (identifier == null) {
             return new ResponseEntity<>(Map.of("error", "Username/Email is required"), HttpStatus.BAD_REQUEST);
         }
-        
+
         try {
             String email = authService.sendLoginOtp(identifier);
             return new ResponseEntity<>(Map.of("message", "OTP sent successfully", "email", email), HttpStatus.OK);
@@ -82,29 +82,40 @@ public class AuthController {
         if (request.getEmail() == null) {
             return new ResponseEntity<>(Map.of("error", "Email is required"), HttpStatus.BAD_REQUEST);
         }
-        
-        // Check if username/password are provided (registration flow)
-        String otp;
-        if (request.getUsername() != null && request.getPassword() != null) {
-            // Check for existing users first
-            if (userService.findByUsername(request.getUsername()).isPresent()) {
-                throw new IllegalArgumentException("Username is already taken");
+
+        // ✅ FIX: wrap entire method in try-catch so IllegalArgumentException
+        // ("Username is already taken" / "Email is already registered")
+        // returns a proper 400 JSON response instead of crashing the servlet with a 403
+        try {
+            String otp;
+            if (request.getUsername() != null && request.getPassword() != null) {
+                // Check for existing users first
+                if (userService.findByUsername(request.getUsername()).isPresent()) {
+                    return new ResponseEntity<>(Map.of("error", "Username is already taken"), HttpStatus.BAD_REQUEST);
+                }
+                if (userService.findByEmail(request.getEmail()).isPresent()) {
+                    return new ResponseEntity<>(Map.of("error", "Email is already registered"), HttpStatus.BAD_REQUEST);
+                }
+
+                otp = otpService.generateOtp(request.getEmail(), request.getUsername(), request.getPassword());
+            } else {
+                otp = otpService.generateOtp(request.getEmail());
             }
-            if (userService.findByEmail(request.getEmail()).isPresent()) {
-                throw new IllegalArgumentException("Email is already registered");
+
+            if (otp == null) {
+                return new ResponseEntity<>(Map.of("error", "Too many requests. Please wait 60 seconds."), HttpStatus.TOO_MANY_REQUESTS);
             }
-            
-            otp = otpService.generateOtp(request.getEmail(), request.getUsername(), request.getPassword());
-        } else {
-            otp = otpService.generateOtp(request.getEmail());
+
+            otpService.sendOtpEmail(request.getEmail(), otp);
+            return new ResponseEntity<>(Map.of("message", "OTP sent successfully"), HttpStatus.OK);
+
+        } catch (IllegalArgumentException e) {
+            // ✅ FIX: return clean 400 error instead of letting it crash
+            return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            System.out.println("ERROR in /send-otp: " + e.getMessage());
+            return new ResponseEntity<>(Map.of("error", "An unexpected error occurred."), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        
-        if (otp == null) {
-            return new ResponseEntity<>(Map.of("error", "Too many requests. Please wait 60 seconds."), HttpStatus.TOO_MANY_REQUESTS);
-        }
-        
-        otpService.sendOtpEmail(request.getEmail(), otp);
-        return new ResponseEntity<>(Map.of("message", "OTP sent successfully"), HttpStatus.OK);
     }
 
     @PostMapping("/verify-otp")
@@ -112,38 +123,35 @@ public class AuthController {
         System.out.println("--- OTP VERIFICATION ATTEMPT ---");
         System.out.println("Email: " + request.getEmail());
         System.out.println("OTP: " + request.getOtp());
-        
+
         if (request.getEmail() == null || request.getOtp() == null) {
             return new ResponseEntity<>(Map.of("error", "Email and OTP are required"), HttpStatus.BAD_REQUEST);
         }
-        
+
         try {
             OtpService.OtpDetails details = otpService.verifyOtp(request.getEmail(), request.getOtp());
-            
+
             if (details == null) {
                 System.out.println("FAILED: OTP is invalid or expired.");
                 return new ResponseEntity<>(Map.of("error", "Invalid or expired OTP"), HttpStatus.BAD_REQUEST);
             }
-            
+
             // If this is a registration OTP with pending user details
             if (details.getUsername() != null && details.getPassword() != null) {
-                // Save the user securely in the database
                 User user = userService.registerUser(details.getUsername(), request.getEmail(), details.getPassword());
                 System.out.println("SUCCESS: User successfully saved to the database!");
-                
-                // Auto-login the user after registration
+
                 LoginRequest loginRequest = new LoginRequest();
                 loginRequest.setUsername(details.getUsername());
                 loginRequest.setPassword(details.getPassword());
                 loginRequest.setOtp(request.getOtp());
-                
+
                 Map<String, Object> authResponse = authService.authenticateForRegistration(loginRequest, user);
                 return new ResponseEntity<>(authResponse, HttpStatus.OK);
             }
-            
-            // For login OTP verification (no user creation)
+
             return new ResponseEntity<>(Map.of("message", "OTP verified successfully"), HttpStatus.OK);
-            
+
         } catch (IllegalArgumentException e) {
             return new ResponseEntity<>(Map.of("error", e.getMessage()), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
@@ -155,7 +163,7 @@ public class AuthController {
     public ResponseEntity<?> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
-        
+
         return userService.findByUsername(username)
                 .map(user -> ResponseEntity.ok((Object) new UserResponse(user.getId(), user.getUsername(), user.getEmail(), user.getRoles())))
                 .orElse(new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND));
