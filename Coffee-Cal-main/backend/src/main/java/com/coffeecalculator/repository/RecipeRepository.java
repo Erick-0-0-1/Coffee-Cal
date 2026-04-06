@@ -111,6 +111,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     @Query(value = "SELECT * FROM recipes ORDER BY created_at DESC LIMIT ?1", nativeQuery = true)
     List<Recipe> findTopNByDate(int n);
 
+    @Query("SELECT COALESCE(AVG(r.targetMarginPercent), 0.0) FROM Recipe r")
     double calculateAverageRating();
 
     @Query(value = "SELECT created_at FROM recipes ORDER BY created_at DESC LIMIT 1", nativeQuery = true)
