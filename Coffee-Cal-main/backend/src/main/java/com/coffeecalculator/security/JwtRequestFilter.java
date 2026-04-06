@@ -21,8 +21,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public JwtRequestFilter(JwtTokenProvider jwtTokenProvider, @org.springframework.context.annotation.Lazy CustomUserDetailsService userDetailsService) {
+    public JwtRequestFilter(JwtTokenProvider jwtTokenProvider, CustomUserDetailsService userDetailsService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userDetailsService = userDetailsService;
     }
