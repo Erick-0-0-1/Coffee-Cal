@@ -47,13 +47,17 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     // ==============================================
 
     @Query("SELECT r FROM Recipe r WHERE r.coffeeShop.id = :shopId AND r.suggestedSellingPrice BETWEEN :minPrice AND :maxPrice")
-    List<Recipe> findByCoffeeShopIdAndPriceRange(Long shopId,
-                                                 @Param("minPrice") BigDecimal minPrice,
-                                                 @Param("maxPrice") BigDecimal maxPrice);
+    List<Recipe> findByCoffeeShopIdAndPriceRange(
+        @Param("shopId") Long shopId,
+        @Param("minPrice") BigDecimal minPrice,
+        @Param("maxPrice") BigDecimal maxPrice
+    );
 
     @Query("SELECT r FROM Recipe r WHERE r.coffeeShop.id = :shopId AND r.actualMarginPercent >= :minMargin")
-    List<Recipe> findByCoffeeShopIdAndMinimumMargin(Long shopId,
-                                                    @Param("minMargin") BigDecimal minMargin);
+    List<Recipe> findByCoffeeShopIdAndMinimumMargin(
+        @Param("shopId") Long shopId,
+        @Param("minMargin") BigDecimal minMargin
+    );
 
     @Query("SELECT COUNT(r) FROM Recipe r WHERE r.coffeeShop.id = :shopId")
     long countByCoffeeShopId(Long shopId);
