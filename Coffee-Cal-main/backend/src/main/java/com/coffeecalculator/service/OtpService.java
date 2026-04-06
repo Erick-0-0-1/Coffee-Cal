@@ -1,17 +1,13 @@
 package com.coffeecalculator.service;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.simpleemail.AmazonSimpleEmailService;
-import com.amazonaws.services.simpleemail.AmazonSimpleEmailServiceClientBuilder;
-import com.amazonaws.services.simpleemail.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.security.SecureRandom;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,16 +22,10 @@ public class OtpService {
     private static final int MAX_ATTEMPTS = 3; // Brute-force protection: 3 allowed guesses
     private static final int OTP_COOLDOWN_SECONDS = 60; // Rate limiting: 1 OTP per minute
 
-    @Value("${aws.access.key:}")
-    private String awsAccessKey;
+    @Autowired
+    private JavaMailSender mailSender;
 
-    @Value("${aws.secret.key:}")
-    private String awsSecretKey;
-
-    @Value("${aws.ses.region:us-east-1}")
-    private String awsRegion;
-
-    @Value("${aws.ses.from.email:noreply@coffeecalc.com}")
+    @Value("${spring.mail.username:noreply@coffeecalc.com}")
     private String fromEmail;
 
     // Simple ConcurrentHashMap implementation (replaces Caffeine for build stability)
@@ -46,8 +36,6 @@ public class OtpService {
 
     // Cryptographically secure random number generator
     private final SecureRandom secureRandom = new SecureRandom();
-    
-    private AmazonSimpleEmailService sesClient;
 
     // Helper class to track OTP code and failed attempts atomically
     private static class OtpDetails {
@@ -65,27 +53,6 @@ public class OtpService {
 
         public int incrementAndGetAttempts() {
             return attempts.incrementAndGet();
-        }
-    }
-
-    // Initialize heavy AWS client exactly once on service startup
-    @PostConstruct
-    public void init() {
-        if (!awsAccessKey.isEmpty() && !awsSecretKey.isEmpty()) {
-            try {
-                BasicAWSCredentials creds = new BasicAWSCredentials(awsAccessKey, awsSecretKey);
-                this.sesClient = AmazonSimpleEmailServiceClientBuilder.standard()
-                        .withCredentials(new AWSStaticCredentialsProvider(creds))
-                        .withRegion(Regions.fromName(awsRegion))
-                        .build();
-                log.info("AWS SES Client initialized successfully. OTP emails will be sent.");
-            } catch (Exception e) {
-                log.error("Failed to initialize AWS SES Client: {}", e.getMessage());
-                log.warn("OTP Service running in DEMO MODE.");
-            }
-        } else {
-            log.warn("AWS Credentials missing. OTP Service running in DEMO MODE.");
-            log.info("OTP codes will be printed to console for testing.");
         }
     }
 
@@ -144,48 +111,20 @@ public class OtpService {
     }
 
     /**
-     * Sends OTP email via AWS SES, falls back to console output in demo mode
+     * Sends OTP email via Gmail SMTP
      * @param email Recipient email address
      * @param otp OTP code to send
      */
     public void sendOtpEmail(String email, String otp) {
-        if (sesClient == null) {
-            log.info("DEMO MODE: OTP for {} is {}", email, otp);
-            return;
-        }
-
         try {
-            String subject = "Your coffeeCalc Verification Code";
-            String body = String.format("""
-                    <html>
-                    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <div style="background: #1877f2; padding: 20px; text-align: center;">
-                            <h2 style="color: white; margin: 0;">coffeeCalc</h2>
-                        </div>
-                        <div style="padding: 30px; background: #f8f9fa;">
-                            <h3>Welcome to coffeeCalc!</h3>
-                            <p>Your verification code is:</p>
-                            <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                                <h1 style="font-size: 48px; font-weight: bold; color: #1877f2; letter-spacing: 12px; margin: 0;">%s</h1>
-                            </div>
-                            <p>This code will expire in 5 minutes.</p>
-                            <p style="color: #6c757d; font-size: 14px;">If you didn't request this code, you can safely ignore this email.</p>
-                        </div>
-                    </body>
-                    </html>
-                    """, otp);
-
-            SendEmailRequest request = new SendEmailRequest()
-                    .withDestination(new Destination().withToAddresses(email))
-                    .withMessage(new Message()
-                            .withBody(new Body()
-                                    .withHtml(new Content().withCharset("UTF-8").withData(body)))
-                            .withSubject(new Content().withCharset("UTF-8").withData(subject)))
-                    .withSource(fromEmail);
-
-            sesClient.sendEmail(request);
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(email);
+            message.setSubject("Your coffeeCalc Verification Code");
+            message.setText("Your verification code is: " + otp + ". It will expire in 5 minutes.");
+            
+            mailSender.send(message);
             log.info("Successfully sent OTP email to {}", email);
-
         } catch (Exception e) {
             log.error("Failed to send OTP email to {}: {}", email, e.getMessage());
             log.info("FALLBACK: OTP for {} is {}", email, otp);
