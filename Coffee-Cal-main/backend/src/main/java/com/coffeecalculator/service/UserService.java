@@ -56,6 +56,10 @@ public class UserService {
         return userRepository.findByUsername(username);
     }
 
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
     public boolean authenticate(String username, String rawPassword) {
         return findByUsername(username)
                 .map(user -> {

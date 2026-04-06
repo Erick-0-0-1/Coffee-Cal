@@ -22,15 +22,18 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserService userService;
     private final CustomUserDetailsService userDetailsService;
+    private final OtpService otpService;
 
     public AuthService(AuthenticationManager authenticationManager,
                        JwtTokenProvider jwtTokenProvider,
                        UserService userService,
-                       CustomUserDetailsService userDetailsService) {
+                       CustomUserDetailsService userDetailsService,
+                       OtpService otpService) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.userService = userService;
         this.userDetailsService = userDetailsService;
+        this.otpService = otpService;
     }
 
     public Map<String, Object> authenticate(LoginRequest request) {
@@ -53,22 +56,24 @@ public class AuthService {
         return response;
     }
 
-    public UserResponse register(UserRegistrationRequest request) {
+    public String register(UserRegistrationRequest request) {
         if (userService.findByUsername(request.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Username is already taken");
         }
+        
+        if (userService.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Email is already registered");
+        }
 
-        User user = userService.registerUser(
-                request.getUsername(),
-                request.getEmail(),
-                request.getPassword()
-        );
-
-        return new UserResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getRoles()
-        );
+        // Generate and send OTP - don't create user yet
+        String otp = otpService.generateOtp(request.getEmail());
+        
+        if (otp == null) {
+            throw new IllegalArgumentException("Too many requests. Please wait 60 seconds before requesting a new code.");
+        }
+        
+        otpService.sendOtpEmail(request.getEmail(), otp);
+        
+        return "OTP sent";
     }
 }

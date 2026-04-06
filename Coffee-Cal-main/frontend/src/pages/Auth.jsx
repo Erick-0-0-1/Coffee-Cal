@@ -22,11 +22,15 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/api/auth/send-otp', { email });
+      await api.post('/api/auth/register', { 
+        username, 
+        email, 
+        password 
+      });
       setPendingEmail(email);
       setShowOtpScreen(true);
     } catch (err) {
-      setError('Failed to send OTP. Please try again.');
+      setError(err.response?.data?.error || 'Failed to send OTP. Please try again.');
     }
     setLoading(false);
   };
