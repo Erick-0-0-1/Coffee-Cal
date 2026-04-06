@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/ingredients")
 @RequiredArgsConstructor
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:5173", "${cors.allowed-origins}"})
+// 🚨 REMOVED: @CrossOrigin(...) to let SecurityConfig handle it globally!
 public class IngredientController {
 
     private final IngredientService ingredientService;
