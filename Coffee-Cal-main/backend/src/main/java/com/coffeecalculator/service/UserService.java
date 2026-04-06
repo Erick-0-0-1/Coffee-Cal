@@ -30,10 +30,6 @@ public class UserService {
             seedUser("admin", "admin123", "admin@coffeecalculator.com", Set.of(Role.OWNER));
             log.info("Seeded test user: admin");
         }
-        if (userRepository.findByUsername("user").isEmpty()) {
-            seedUser("user", "user123", "user@coffeecalculator.com", Set.of(Role.BARISTA));
-            log.info("Seeded test user: user");
-        }
     }
 
     private void seedUser(String username, String password, String email, Set<Role> roles) {
@@ -49,31 +45,22 @@ public class UserService {
         return userRepository.findByUsername(username);
     }
 
-    // ← ADDED: required by CustomUserDetailsService for email-based lookup
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmailIgnoreCase(email);
     }
 
     public boolean authenticate(String username, String rawPassword) {
         return findByUsername(username)
-                .map(user -> {
-                    boolean isValid = passwordEncoder.matches(rawPassword, user.getPasswordHash());
-                    if (!isValid) {
-                        log.debug("Authentication failed for user: {}", username);
-                    }
-                    return isValid;
-                })
+                .map(user -> passwordEncoder.matches(rawPassword, user.getPasswordHash()))
                 .orElse(false);
     }
 
     public User registerUser(String username, String email, String rawPassword) {
         if (userRepository.findByUsername(username).isPresent()) {
-            log.warn("Registration failed: Username '{}' already taken.", username);
             throw new IllegalArgumentException("Username already taken.");
         }
 
         if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
-            log.warn("Registration failed: Email '{}' already in use.", email);
             throw new IllegalArgumentException("Email already registered.");
         }
 
@@ -81,10 +68,11 @@ public class UserService {
         newUser.setUsername(username);
         newUser.setPasswordHash(passwordEncoder.encode(rawPassword));
         newUser.setEmail(email);
-        newUser.setRoles(Set.of(Role.BARISTA));
+        // ← CHANGED: OWNER role so you have full access to all endpoints
+        newUser.setRoles(Set.of(Role.OWNER));
 
         User saved = userRepository.save(newUser);
-        log.info("Successfully registered new user: {} (ID: {})", username, saved.getId());
+        log.info("Registered new user: {} (ID: {})", username, saved.getId());
         return saved;
     }
 }
