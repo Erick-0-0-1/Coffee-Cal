@@ -22,7 +22,7 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/api/auth/send-otp', { 
+      await api.post('/auth/send-otp', { 
         email, 
         username, 
         password 
@@ -39,13 +39,13 @@ const Auth = () => {
     const otpCode = otp.join('');
     setLoading(true);
     try {
-      await api.post('/api/auth/verify-otp', { 
+      await api.post('/auth/verify-otp', { 
         email: pendingEmail, 
         otp: otpCode,
         username,
         password 
       });
-      const response = await api.post('/api/auth/login', { username, password });
+      const response = await api.post('/auth/login', { username, password });
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
@@ -59,7 +59,7 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await api.post('/api/auth/login', { 
+      const response = await api.post('/auth/login', { 
         username: isLogin ? email : username, 
         password 
       });
