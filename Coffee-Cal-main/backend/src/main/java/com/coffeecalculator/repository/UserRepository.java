@@ -10,4 +10,7 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
     boolean existsByUsername(String username);
+
+    @org.springframework.data.jpa.repository.Query(value = "SELECT last_login FROM users ORDER BY last_login DESC LIMIT 1", nativeQuery = true)
+    java.time.LocalDateTime findMostRecentActivity();
 }

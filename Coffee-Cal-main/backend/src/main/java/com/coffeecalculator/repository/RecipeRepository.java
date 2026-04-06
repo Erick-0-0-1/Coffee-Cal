@@ -109,7 +109,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
     double calculateAverageRating();
 
+    @Query(value = "SELECT created_at FROM recipes ORDER BY created_at DESC LIMIT 1", nativeQuery = true)
     java.time.LocalDateTime findMostRecentActivity();
 
-    java.util.Map<String, Long> getIngredientUsageCounts();
+    @Query("SELECT ri.ingredient.name, COUNT(ri) FROM RecipeIngredient ri GROUP BY ri.ingredient.name")
+    List<Object[]> getIngredientUsageCounts();
 }

@@ -47,4 +47,10 @@ public class RecipeDTO {
     private String primaryIngredient;
     private Double averageRating;
     private java.time.LocalDateTime publishedDate;
+    
+    // Additional required fields
+    private java.math.BigDecimal allocatedExpensePerItem;
+    private java.math.BigDecimal netProfit;
+    private java.math.BigDecimal netMarginPercent;
+    private java.math.BigDecimal finalSellingPrice;
 }

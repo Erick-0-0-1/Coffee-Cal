@@ -77,4 +77,11 @@ public class RecipeIngredient {
         this.ingredient = ingredient;
         this.quantity = quantity;
     }
+
+    public java.math.BigDecimal calculateLineCost() {
+        if (this.ingredient == null || this.quantity == null || this.ingredient.getCostPerBaseUnit() == null) {
+            return java.math.BigDecimal.ZERO;
+        }
+        return this.quantity.multiply(this.ingredient.getCostPerBaseUnit());
+    }
 }
