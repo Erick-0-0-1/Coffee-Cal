@@ -7,7 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000, // ✅ FIX: 15s timeout so stuck requests fail with an error
+  timeout: 180000, // ✅ FIX: Increased to 3 minutes (180000ms) so Render has time to wake up
 });
 
 // Ingredient API calls
@@ -106,7 +106,7 @@ api.interceptors.response.use(
   (error) => {
     const standardizedError = {
       message: error.code === 'ECONNABORTED'
-        ? 'Request timed out. The server may be waking up — please try again in a moment.' // ✅ FIX: friendly timeout message
+        ? 'Request timed out. The server may be waking up — please try again in a moment.' 
         : error.response?.data?.error || error.response?.data || error.message || 'An unexpected error occurred',
       status: error.response?.status,
       statusText: error.response?.statusText,
