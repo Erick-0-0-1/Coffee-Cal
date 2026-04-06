@@ -59,7 +59,7 @@ public class UserService {
     public boolean authenticate(String username, String rawPassword) {
         return findByUsername(username)
                 .map(user -> {
-                    boolean isValid = passwordEncoder.matches(rawPassword, user.getPasswordHash());
+                    boolean isValid = passwordEncoder.matches(rawPassword, user.getPassword());
                     if (!isValid) {
                         log.debug("Authentication failed for user: {}", username);
                     }
