@@ -97,11 +97,11 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     @Query("SELECT COUNT(r) FROM Recipe r")
     long countTotalRecipes();
 
-    /**
-     * Get average selling price across all recipes
-     */
-    @Query("SELECT AVG(r.suggestedSellingPrice) FROM Recipe r")
-    BigDecimal getAverageSellingPrice();
+//    /**
+//     * Get average selling price across all recipes
+//     */
+//    @Query("SELECT AVG(r.suggestedSellingPrice) FROM Recipe r")
+//    BigDecimal getAverageSellingPrice();
 
     List<Recipe> findByDrinkNameContainingIgnoreCase(String name);
 
