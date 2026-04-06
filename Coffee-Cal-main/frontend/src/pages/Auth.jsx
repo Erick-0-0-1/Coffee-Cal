@@ -18,7 +18,6 @@ const Auth = () => {
   
   const navigate = useNavigate();
 
-  // ✅ FIX 1: Added (e) parameter and e.preventDefault()
   const handleSendOtp = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setLoading(true);
@@ -39,10 +38,11 @@ const Auth = () => {
       }
       setShowOtpScreen(true);
     } catch (err) {
-      // ✅ FIX 2: Use err.message instead of err.response?.data?.error
       setError(err.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      // ✅ FIX: always resets button, even on timeout or unexpected error
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleVerifyOtp = async () => {
@@ -61,10 +61,11 @@ const Auth = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      // ✅ FIX 2 applied
       setError(err.message || 'Invalid OTP code. Please try again.');
+    } finally {
+      // ✅ FIX: always resets button
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleLogin = async (e) => {
@@ -78,10 +79,11 @@ const Auth = () => {
       setPendingEmail(otpResponse.data.email);
       setShowOtpScreen(true);
     } catch (err) {
-      // ✅ FIX 2 applied
       setError(err.message || 'Invalid username or password');
+    } finally {
+      // ✅ FIX: always resets button
+      setLoading(false);
     }
-    setLoading(false);
   };
   
   const handleVerifyLoginOtp = async () => {
@@ -96,10 +98,11 @@ const Auth = () => {
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
-      // ✅ FIX 2 applied
       setError(err.message || 'Invalid OTP code. Please try again.');
+    } finally {
+      // ✅ FIX: always resets button
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSocialLogin = (provider) => {
@@ -223,7 +226,6 @@ const Auth = () => {
               </div>
             </div>
 
-            {/* ✅ FIX 1: form onSubmit now correctly calls handleSendOtp for register */}
             <form onSubmit={isLogin ? handleLogin : handleSendOtp} className="space-y-4">
               {!isLogin && (
                 <div className="relative">
