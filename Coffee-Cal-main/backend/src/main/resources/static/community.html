@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Recipe Market</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+        .recipe-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: box-shadow 0.2s;
+        }
+        .recipe-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-6xl mx-auto p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Community Recipe Market</h1>
+        
+        <div id="recipeContainer" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <!-- Recipes will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        async function loadCommunityRecipes() {
+            try {
+                const response = await fetch('/api/community/recipes', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) throw new Error('Failed to load recipes');
+                
+                const recipes = await response.json();
+                const container = document.getElementById('recipeContainer');
+                
+                if (recipes.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 col-span-3 text-center py-12">No public recipes available yet. Be the first to publish!</p>';
+                    return;
+                }
+
+                container.innerHTML = recipes.map(recipe => `
+                    <div class="recipe-card bg-white">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-2">${recipe.drinkName}</h3>
+                        <div class="space-y-1 text-sm text-gray-600 mb-4">
+                            <p><strong>Target Margin:</strong> ${recipe.targetMarginPercent}%</p>
+                            <p><strong>Cost:</strong> PHP ${recipe.totalCost || 'N/A'}</p>
+                            <p><strong>Ingredients:</strong> ${recipe.ingredients?.length || 0} items</p>
+                            ${recipe.originalCreatorName ? `<p class="text-indigo-600"><strong>Created by:</strong> ${recipe.originalCreatorName}</p>` : ''}
+                        </div>
+                        <button 
+                            onclick="cloneRecipe(${recipe.id})"
+                            class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition"
+                        >
+                            Clone to My Shop
+                        </button>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('recipeContainer').innerHTML = 
+                    '<p class="text-red-500">Failed to load community recipes. Please login.</p>';
+            }
+        }
+
+        async function cloneRecipe(recipeId) {
+            try {
+                const response = await fetch(`/api/community/recipes/${recipeId}/clone`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    alert('Recipe cloned successfully! Check your recipes list.');
+                } else {
+                    alert('Failed to clone recipe');
+                }
+            } catch (error) {
+                alert('Error cloning recipe');
+            }
+        }
+
+        // Load recipes when page loads
+        document.addEventListener('DOMContentLoaded', loadCommunityRecipes);
+    </script>
+</body>
+</html>

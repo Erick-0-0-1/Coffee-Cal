@@ -1,0 +1,21 @@
+# Compiled Java classes
+target/
+*.class
+
+# Log files
+*.log
+
+# IDE specific files
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables (Safety first!)
+.env

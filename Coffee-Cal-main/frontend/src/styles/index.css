@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans;
+    @apply bg-[#f5f0e8] text-gray-900;
+    @apply antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body.dark {
+    @apply bg-[#1a1a1a] text-gray-100;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .metric-card {
+    @apply bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100;
+    @apply active:scale-[0.98] transition-transform duration-150;
+  }
+
+  .dark .metric-card {
+    @apply bg-[#242424] border-gray-800;
+  }
+
+  .main-card {
+    @apply bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-sm border border-gray-100;
+  }
+
+  .dark .main-card {
+    @apply bg-[#242424] border-gray-800;
+  }
+
+  .tab-btn {
+    @apply px-4 py-2.5 min-h-[44px] rounded-full font-medium text-sm transition-all;
+    @apply bg-gray-100 text-gray-600;
+    @apply active:scale-[0.97];
+  }
+
+  .tab-btn.active {
+    @apply bg-gray-900 text-white;
+  }
+
+  .dark .tab-btn {
+    @apply bg-gray-800 text-gray-400;
+  }
+
+  .dark .tab-btn.active {
+    @apply bg-white text-gray-900;
+  }
+
+  .input-clean {
+    @apply w-full px-4 py-3 min-h-[48px] rounded-xl bg-gray-50 border border-gray-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent;
+    @apply text-base;
+  }
+
+  .dark .input-clean {
+    @apply bg-[#2a2a2a] border-gray-700 text-gray-100;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 min-h-[48px] bg-black text-white rounded-xl font-medium;
+    @apply hover:bg-gray-800 transition-all active:scale-[0.98];
+    @apply text-base;
+  }
+
+  .dark .btn-primary {
+    @apply bg-white text-black hover:bg-gray-100;
+  }
+
+  .item-card {
+    @apply bg-gray-50 rounded-xl p-4 border border-gray-100;
+    @apply active:scale-[0.98] transition-transform duration-150;
+  }
+
+  .dark .item-card {
+    @apply bg-[#2a2a2a] border-gray-700;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100;
+  }
+
+  .dark .card {
+    @apply bg-[#242424] border-gray-800;
+  }
+}
+
+@layer utilities {
+  .content-auto {
+    content-visibility: auto;
+  }
+
+  .touch-none {
+    touch-action: none;
+  }
+
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
