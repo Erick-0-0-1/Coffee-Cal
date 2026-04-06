@@ -59,7 +59,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     long countByCoffeeShopId(Long shopId);
 
     @Query("SELECT AVG(r.suggestedSellingPrice) FROM Recipe r WHERE r.coffeeShop.id = :shopId")
-    BigDecimal getAverageSellingPriceByCoffeeShopId(Long shopId);
+    BigDecimal getAverageSellingPriceByCoffeeShopId(@org.springframework.data.repository.query.Param("shopId") Long shopId);
 
     // POS Integration: Find recipe by external POS item ID
     Optional<Recipe> findByCoffeeShopIdAndPosItemId(Long shopId, String posItemId);
