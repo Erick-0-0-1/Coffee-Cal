@@ -122,8 +122,16 @@ export const recipeService = {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error.response?.data || error.message);
-    return Promise.reject(error);
+    // Standardize error object
+    const standardizedError = {
+      message: error.response?.data?.error || error.response?.data || error.message || 'An unexpected error occurred',
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      originalError: error
+    };
+    
+    console.error('API Error:', standardizedError);
+    return Promise.reject(standardizedError);
   }
 );
 

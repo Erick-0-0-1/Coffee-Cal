@@ -22,9 +22,9 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/api/auth/register', { 
-        username, 
+      await api.post('/api/auth/send-otp', { 
         email, 
+        username, 
         password 
       });
       setPendingEmail(email);
@@ -49,7 +49,7 @@ const Auth = () => {
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid OTP code. Please try again.');
+      setError(err.response?.data?.error || 'Invalid OTP code. Please try again.');
     }
     setLoading(false);
   };
@@ -63,7 +63,7 @@ const Auth = () => {
       localStorage.setItem('token', response.data.token);
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid username or password');
+      setError(err.response?.data || err.response?.data?.error || 'Invalid username or password');
     }
     setLoading(false);
   };

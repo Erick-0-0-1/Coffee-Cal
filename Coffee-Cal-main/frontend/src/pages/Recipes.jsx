@@ -1,368 +1,205 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calculator, DollarSign } from 'lucide-react';
-import { recipeService, ingredientService } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, Coffee, TrendingUp, Trash2, ArrowRight, FileText } from 'lucide-react';
+import { recipeService } from '../services/api';
+import PdfExportModal from '../components/PdfExportModal';
 
-const RecipeDetail = ({ onUpdate }) => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const isNew = id === 'new';
-
-  const [ingredients, setIngredients] = useState([]);
-  const [formData, setFormData] = useState({
-    drinkName: '',
-    targetMarginPercent: '40', // Default margin
-    notes: '',
-    ingredients: [],
-  });
-  const [calculatedData, setCalculatedData] = useState({
-    totalCost: 0,
-    suggestedSellingPrice: 0,
-    grossProfit: 0,
-    actualMarginPercent: 0,
-  });
-  const [loading, setLoading] = useState(false);
+const Recipes = ({ refreshTrigger, onUpdate }) => {
+  const [recipes, setRecipes] = useState([]);
+  const [filteredRecipes, setFilteredRecipes] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
 
   useEffect(() => {
-    fetchIngredients();
-    if (!isNew) {
-      fetchRecipe();
-    }
-  }, [id]);
+    fetchRecipes();
+  }, [refreshTrigger]);
 
   useEffect(() => {
-    calculateCosts();
-  }, [formData.ingredients, formData.targetMarginPercent]);
+    filterRecipes();
+  }, [searchTerm, recipes]);
 
-  const fetchIngredients = async () => {
-    try {
-      const data = await ingredientService.getAll();
-      setIngredients(data);
-    } catch (error) {
-      console.error('Error fetching ingredients:', error);
-    }
-  };
-
-  const fetchRecipe = async () => {
+  const fetchRecipes = async () => {
     try {
       setLoading(true);
-      const data = await recipeService.getById(id);
-      setFormData({
-        drinkName: data.drinkName,
-        targetMarginPercent: data.targetMarginPercent?.toString() || '40',
-        notes: data.notes || '',
-        ingredients: data.ingredients.map((ing) => ({
-          localId: Date.now() + Math.random(),
-          ingredientId: ing.ingredientId,
-          quantity: ing.quantity.toString(),
-        })),
-      });
+      setError('');
+      const data = await recipeService.getAll();
+      setRecipes(data);
+      setFilteredRecipes(data);
     } catch (error) {
-      console.error('Error fetching recipe:', error);
-      alert('Failed to load recipe');
+      setError(error.message || 'Failed to load recipes');
+      console.error('Error fetching recipes:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateCosts = () => {
-    let totalCost = 0;
-
-    for (const recipeIng of formData.ingredients) {
-      const ingredient = ingredients.find((i) => i.id === parseInt(recipeIng.ingredientId));
-      const qty = parseFloat(recipeIng.quantity) || 0;
-
-      if (ingredient && qty > 0) {
-        const lineCost = ingredient.costPerBaseUnit * qty;
-        totalCost += lineCost;
-      }
+  const filterRecipes = () => {
+    if (!searchTerm) {
+      setFilteredRecipes(recipes);
+      return;
     }
-
-    const marginPercent = parseFloat(formData.targetMarginPercent) || 0;
-    let sellingPrice = 0;
-    let grossProfit = 0;
-
-    if (marginPercent > 0 && marginPercent < 100) {
-      const marginDecimal = marginPercent / 100;
-      const divisor = 1 - marginDecimal;
-      if (divisor > 0) {
-        sellingPrice = totalCost / divisor;
-        grossProfit = sellingPrice - totalCost;
-      }
-    }
-
-    setCalculatedData({
-      totalCost,
-      suggestedSellingPrice: sellingPrice,
-      grossProfit,
-      actualMarginPercent: marginPercent,
-    });
+    const filtered = recipes.filter((recipe) =>
+      recipe.drinkName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredRecipes(filtered);
   };
 
-  const addIngredient = () => {
-    setFormData({
-      ...formData,
-      ingredients: [
-        ...formData.ingredients,
-        { localId: Date.now(), ingredientId: '', quantity: '' }
-      ],
-    });
-  };
-
-  const removeIngredient = (localId) => {
-    const newIngredients = formData.ingredients.filter((item) => item.localId !== localId);
-    setFormData({ ...formData, ingredients: newIngredients });
-  };
-
-  const updateIngredient = (index, field, value) => {
-    const newIngredients = [...formData.ingredients];
-    newIngredients[index][field] = value;
-    setFormData({ ...formData, ingredients: newIngredients });
-  };
-
-  // --- THIS IS THE CRITICAL FIX ---
-  const handleSubmit = async (e) => {
+  const handleDelete = async (e, id) => {
     e.preventDefault();
-
-    if (!formData.drinkName.trim()) return alert('Please enter a drink name');
-    if (formData.ingredients.length === 0) return alert('Please add at least one ingredient');
-
-    // Validation
-    for (const ing of formData.ingredients) {
-      if (!ing.ingredientId || !ing.quantity) return alert('Please complete all ingredient selections');
-    }
-
+    if (!window.confirm('Are you sure you want to delete this recipe?')) return;
     try {
-      // Construct payload exactly how Java Entity expects it
-      const dataToSubmit = {
-        drinkName: formData.drinkName,
-        // Ensure we send a valid number for margin
-        targetMarginPercent: parseFloat(formData.targetMarginPercent) || 40,
-        notes: formData.notes,
-        // Map ingredients to remove localId and ensure numbers
-        ingredients: formData.ingredients.map((ing) => ({
-          ingredientId: parseInt(ing.ingredientId),
-          quantity: parseFloat(ing.quantity),
-        })),
-      };
-
-      console.log("Submitting Payload:", dataToSubmit); // Debug log
-
-      if (isNew) {
-        await recipeService.create(dataToSubmit);
-      } else {
-        await recipeService.update(id, dataToSubmit);
-      }
-
+      setError('');
+      await recipeService.delete(id);
+      fetchRecipes();
       if (onUpdate) onUpdate();
-      navigate('/recipes');
     } catch (error) {
-      console.error('Error saving recipe:', error);
-      console.log('Error Response:', error.response?.data); // Log detailed server error
-      alert(`Failed to save recipe: ${error.response?.data?.message || error.message}`);
+      setError(error.message || 'Failed to delete recipe');
+      console.error('Failed to delete recipe', error);
     }
   };
 
-  if (loading) return <div className="text-center py-12">Loading...</div>;
-
-  return (
-    <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Link to="/recipes" className="p-2 hover:bg-coffee-100 rounded-lg transition-colors">
-          <ArrowLeft className="w-6 h-6 text-coffee-700" />
-        </Link>
-        <div>
-          <h1 className="text-4xl font-bold text-coffee-900">
-            {isNew ? 'Create New Recipe' : 'Edit Recipe'}
-          </h1>
-          <p className="text-coffee-600 mt-1">Configure ingredients and pricing</p>
-        </div>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#1c1917]">
+        <Coffee className="w-16 h-16 text-[#d4a373] animate-pulse" />
       </div>
+    );
+  }
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Info Card */}
-        <div className="card">
-          <h2 className="text-2xl font-bold text-coffee-900 mb-4">Basic Information</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="label">Drink Name</label>
-              <input
-                type="text"
-                required
-                value={formData.drinkName}
-                onChange={(e) => setFormData({ ...formData, drinkName: e.target.value })}
-                className="input-field"
-                placeholder="e.g., Salted Caramel Latte"
-              />
-            </div>
+   return (
+     <>
+       <div className="min-h-screen bg-[#1c1917] text-stone-200 font-sans p-4 pb-24">
+         <div className="max-w-7xl mx-auto space-y-6">
 
-            <div>
-              <label className="label">Target Profit Margin (%)</label>
-              <div className="relative">
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  max="99"
-                  step="0.1"
-                  value={formData.targetMarginPercent}
-                  onChange={(e) => setFormData({ ...formData, targetMarginPercent: e.target.value })}
-                  className="input-field"
-                  placeholder="e.g., 40"
-                />
-                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-coffee-600 font-medium">%</span>
-              </div>
-              <p className="text-sm text-coffee-600 mt-1">
-                Changing this will automatically update the Suggested Selling Price below.
-              </p>
-            </div>
+           {/* Error Display */}
+           {error && (
+             <div className="bg-red-900/50 border border-red-700 text-red-400 rounded-lg p-4 flex items-center justify-between">
+               <span>{error}</span>
+               <button 
+                 onClick={() => setError('')}
+                 className="text-red-400 hover:text-red-300 font-bold px-2"
+               >
+                 ✕
+               </button>
+             </div>
+           )}
 
-            <div>
-              <label className="label">Notes (Optional)</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="input-field"
-                rows="3"
-              />
-            </div>
-          </div>
-        </div>
+           {/* HEADER */}
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+             <div>
+               <h1 className="text-3xl font-bold text-[#d4a373]">Recipes</h1>
+               <p className="text-stone-400 text-sm mt-1">Menu engineering and profit analysis.</p>
+             </div>
 
-        {/* Ingredients Card */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-coffee-900">Ingredients</h2>
-            <button type="button" onClick={addIngredient} className="btn-secondary flex items-center space-x-2">
-              <Plus className="w-5 h-5" />
-              <span>Add Ingredient</span>
-            </button>
-          </div>
+             <Link
+               to="/recipes/new"
+               className="w-full md:w-auto flex items-center justify-center gap-2 bg-[#9c4221] hover:bg-[#7c3218] text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg active:scale-95"
+             >
+               <Plus size={20} />
+               <span>Create Recipe</span>
+             </Link>
+           </div>
 
-          {formData.ingredients.length === 0 ? (
-            <div className="text-center py-12 bg-coffee-50 rounded-lg">
-              <p className="text-coffee-600 mb-4">No ingredients added yet</p>
-              <button type="button" onClick={addIngredient} className="btn-primary inline-flex items-center space-x-2">
-                <Plus className="w-5 h-5" />
-                <span>Add First Ingredient</span>
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {formData.ingredients.map((recipeIng, index) => {
-                const ingredient = ingredients.find((i) => i.id === parseInt(recipeIng.ingredientId));
-                const qty = parseFloat(recipeIng.quantity) || 0;
-                const lineCost = ingredient ? ingredient.costPerBaseUnit * qty : 0;
+           {/* SEARCH */}
+           <div className="relative">
+             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-stone-500 w-5 h-5" />
+             <input
+               type="text"
+               placeholder="Search recipes..."
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               className="w-full bg-stone-900 border border-stone-800 text-stone-200 pl-12 pr-4 py-3.5 rounded-xl focus:border-[#d4a373] outline-none shadow-sm"
+             />
+           </div>
 
-                return (
-                  <div key={recipeIng.localId} className="flex items-end space-x-3 p-4 bg-coffee-50 rounded-lg">
-                    <div className="flex-1">
-                      <label className="label text-xs">Ingredient</label>
-                      <select
-                        required
-                        value={recipeIng.ingredientId}
-                        onChange={(e) => updateIngredient(index, 'ingredientId', e.target.value)}
-                        className="input-field"
-                      >
-                        <option value="">Select ingredient...</option>
-                        {ingredients.map((ing) => (
-                          <option key={ing.id} value={ing.id}>
-                            {ing.name} ({ing.category})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="w-32">
-                      <label className="label text-xs">
-                        Quantity {ingredient && `(${ingredient.baseUnit})`}
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        step="0.01"
-                        value={recipeIng.quantity}
-                        onChange={(e) => updateIngredient(index, 'quantity', e.target.value)}
-                        className="input-field"
-                        placeholder="0.00"
-                      />
-                    </div>
+           {/* GRID */}
+           {filteredRecipes.length > 0 ? (
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               {filteredRecipes.map((recipe) => (
+                 <Link
+                   to={`/recipes/${recipe.id}`}
+                   key={recipe.id}
+                   className="block group relative bg-stone-900/40 border border-stone-800 rounded-2xl overflow-hidden hover:border-[#d4a373]/50 transition-all hover:shadow-xl active:scale-[0.98]"
+                 >
+                   <div className="p-5 border-b border-stone-800/50">
+                     <div className="flex justify-between items-start mb-2">
+                       <h3 className="text-xl font-bold text-stone-100 group-hover:text-[#d4a373] transition-colors">
+                         {recipe.drinkName}
+                       </h3>
+                     </div>
+                   </div>
 
-                    <div className="w-32">
-                      <label className="label text-xs">Line Cost</label>
-                      <div className="px-4 py-3 bg-white rounded-lg border-2 border-coffee-200 font-mono text-sm font-semibold text-coffee-900">
-                        ${lineCost.toFixed(2)}
-                      </div>
-                    </div>
+                   <div className="grid grid-cols-3 divide-x divide-stone-800/50 bg-stone-950/30">
+                     <div className="p-3 text-center">
+                       <p className="text-[10px] text-stone-500 uppercase tracking-wider">Cost</p>
+                       <p className="text-stone-300 font-mono text-sm">₱{recipe.totalCost?.toFixed(0)}</p>
+                     </div>
+                     <div className="p-3 text-center">
+                       <p className="text-[10px] text-stone-500 uppercase tracking-wider">Price</p>
+                       <p className="text-white font-bold font-mono text-sm">₱{recipe.suggestedSellingPrice?.toFixed(0)}</p>
+                     </div>
+                     <div className="p-3 text-center bg-stone-900/50">
+                       <p className="text-[10px] text-stone-500 uppercase tracking-wider">Margin</p>
+                       <p className={`font-bold font-mono text-sm ${recipe.actualMarginPercent >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>
+                         {recipe.actualMarginPercent?.toFixed(0)}%
+                       </p>
+                     </div>
+                   </div>
 
-                    <button
-                      type="button"
-                      onClick={() => removeIngredient(recipeIng.localId)}
-                      className="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                   <div className="p-4 flex items-center justify-between bg-gradient-to-r from-stone-900 to-transparent">
+                     <div className="flex items-center gap-2 text-emerald-500/80">
+                       <TrendingUp size={16} />
+                       <span className="text-xs font-medium">Profit: ₱{recipe.grossProfit?.toFixed(2)}</span>
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <button
+                         onClick={(e) => {
+                           e.preventDefault();
+                           setSelectedRecipe(recipe);
+                           setPdfModalOpen(true);
+                         }}
+                         className="p-2 text-stone-600 hover:text-blue-400 hover:bg-blue-900/20 rounded-full transition-colors z-10"
+                         title="Export PDF"
+                       >
+                         <FileText size={18} />
+                       </button>
+                       <button
+                         onClick={(e) => handleDelete(e, recipe.id)}
+                         className="p-2 text-stone-600 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors z-10"
+                       >
+                         <Trash2 size={18} />
+                       </button>
+                       <ArrowRight size={18} className="text-stone-600" />
+                     </div>
+                   </div>
+                 </Link>
+               ))}
+             </div>
+           ) : (
+             <div className="text-center py-12 text-stone-500">
+               <p>No recipes found.</p>
+             </div>
+           )}
+         </div>
+       </div>
 
-        {/* Cost Calculation Summary */}
-        <div className="card bg-gradient-to-br from-coffee-50 to-cream-50">
-          <div className="flex items-center mb-6">
-            <Calculator className="w-6 h-6 text-coffee-600 mr-2" />
-            <h2 className="text-2xl font-bold text-coffee-900">Pricing Calculation</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg p-4 border-2 border-coffee-200">
-              <p className="text-sm text-coffee-600 mb-1">Total Cost</p>
-              <p className="text-2xl font-bold text-coffee-900">
-                ₱{calculatedData.totalCost.toFixed(2)}
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border-2 border-green-200">
-              <p className="text-sm text-green-700 mb-1">Gross Profit</p>
-              <p className="text-2xl font-bold text-green-900">
-                ₱{calculatedData.grossProfit.toFixed(2)}
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border-2 border-blue-200">
-              <p className="text-sm text-blue-700 mb-1">Profit Margin</p>
-              <p className="text-2xl font-bold text-blue-900">
-                {calculatedData.actualMarginPercent.toFixed(1)}%
-              </p>
-            </div>
-
-            <div className="bg-gradient-to-br from-coffee-600 to-coffee-800 rounded-lg p-4 border-2 border-coffee-700">
-              <div className="flex items-center mb-1">
-                <DollarSign className="w-5 h-5 text-cream-200 mr-1" />
-                <p className="text-sm text-cream-200">Suggested Selling Price</p>
-              </div>
-              <p className="text-3xl font-bold text-white">
-                ${calculatedData.suggestedSellingPrice.toFixed(2)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex space-x-4">
-          <button type="submit" className="btn-primary flex-1">
-            {isNew ? 'Create Recipe' : 'Update Recipe'}
-          </button>
-          <Link to="/recipes" className="btn-secondary flex-1 text-center">
-            Cancel
-          </Link>
-        </div>
-      </form>
-    </div>
-  );
+       {/* PDF Export Modal */}
+       {selectedRecipe && (
+         <PdfExportModal
+           isOpen={pdfModalOpen}
+           onClose={() => {
+             setPdfModalOpen(false);
+             setSelectedRecipe(null);
+           }}
+           recipeId={selectedRecipe.id}
+           recipeName={selectedRecipe.drinkName}
+         />
+       )}
+     </>
+   );
 };
 
-export default RecipeDetail;
+export default Recipes;

@@ -7,6 +7,8 @@ const Ingredients = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Form State
   const [newItem, setNewItem] = useState({
@@ -30,9 +32,11 @@ const Ingredients = () => {
 
   const loadIngredients = async () => {
     try {
+      setError('');
       const data = await ingredientService.getAll();
       setIngredients(data);
     } catch (error) {
+      setError(error.message || 'Failed to load ingredients');
       console.error('Failed to load ingredients', error);
     }
   };
@@ -46,6 +50,8 @@ const Ingredients = () => {
     if (!newItem.name || !newItem.packSize || !newItem.totalPrice) return;
 
     try {
+      setLoading(true);
+      setError('');
       const ingredientToSave = {
         ...newItem,
         packSize: parseFloat(newItem.packSize),
@@ -58,17 +64,25 @@ const Ingredients = () => {
       setNewItem({ name: '', category: 'Beans', packSize: '', packUnit: 'g', totalPrice: '' });
       loadIngredients();
     } catch (error) {
-      alert('Failed to save ingredient');
+      setError(error.message || 'Failed to save ingredient');
+      console.error('Failed to save ingredient', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
     if(!window.confirm("Delete this ingredient?")) return;
     try {
+      setLoading(true);
+      setError('');
       await ingredientService.delete(id);
       loadIngredients();
-    } catch (e) {
-      alert("Failed to delete");
+    } catch (error) {
+      setError(error.message || 'Failed to delete ingredient');
+      console.error('Failed to delete ingredient', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -79,9 +93,22 @@ const Ingredients = () => {
 
   return (
     <div className="min-h-screen bg-[#1c1917] text-stone-200 pb-24 font-sans">
-      <div className="max-w-5xl mx-auto p-4 space-y-6">
+        <div className="max-w-5xl mx-auto p-4 space-y-6">
 
-        {/* HEADER */}
+          {/* Error Display */}
+          {error && (
+            <div className="bg-red-900/50 border border-red-700 text-red-400 rounded-lg p-4 flex items-center justify-between">
+              <span>{error}</span>
+              <button 
+                onClick={() => setError('')}
+                className="text-red-400 hover:text-red-300 font-bold px-2"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[#d4a373]">Inventory</h1>
@@ -164,6 +191,13 @@ const Ingredients = () => {
               <h2 className="text-xl font-bold text-[#d4a373]">Add New Item</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-stone-400 hover:text-white">✕</button>
             </div>
+
+            {/* Modal Error Display */}
+            {error && (
+              <div className="mx-5 mt-5 bg-red-900/50 border border-red-700 text-red-400 rounded-lg p-3 text-sm">
+                {error}
+              </div>
+            )}
 
             {/* Scrollable Form Area */}
             <div className="p-5 space-y-5 overflow-y-auto">

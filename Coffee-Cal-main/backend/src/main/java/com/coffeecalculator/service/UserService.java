@@ -57,7 +57,7 @@ public class UserService {
     }
 
     public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
+        return userRepository.findByEmailIgnoreCase(email);
     }
 
     public boolean authenticate(String username, String rawPassword) {
@@ -79,8 +79,8 @@ public class UserService {
             throw new IllegalArgumentException("Username already taken.");
         }
 
-        // Check for existing email across all registered users
-        if (userRepository.existsByEmail(email)) {
+        // Check for existing email across all registered users (case-insensitive)
+        if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
             log.warn("Registration failed: Email '{}' already in use.", email);
             throw new IllegalArgumentException("Email already registered.");
         }
