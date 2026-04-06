@@ -76,15 +76,15 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     /**
      * Find recipes with selling price in range
      */
-//    @Query("SELECT r FROM Recipe r WHERE r.suggestedSellingPrice BETWEEN :minPrice AND :maxPrice")
-//    List<Recipe> findByPriceRange(@Param("minPrice") BigDecimal minPrice,
-//                                  @Param("maxPrice") BigDecimal maxPrice);
+    @Query("SELECT r FROM Recipe r WHERE r.suggestedSellingPrice BETWEEN :minPrice AND :maxPrice")
+    List<Recipe> findByPriceRange(@Param("minPrice") BigDecimal minPrice,
+                                  @Param("maxPrice") BigDecimal maxPrice);
 
     /**
      * Find recipes with margin greater than specified
      */
-//    @Query("SELECT r FROM Recipe r WHERE r.actualMarginPercent >= :minMargin")
-//    List<Recipe> findByMinimumMargin(@Param("minMargin") BigDecimal minMargin);
+    @Query("SELECT r FROM Recipe r WHERE r.actualMarginPercent >= :minMargin")
+    List<Recipe> findByMinimumMargin(@Param("minMargin") BigDecimal minMargin);
 
     /**
      * Check if recipe name exists
