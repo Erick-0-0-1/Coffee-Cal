@@ -1,11 +1,10 @@
 package com.coffeecalculator.service;
 
+import com.resend.Resend;
+import com.resend.services.emails.model.SendEmailRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -22,11 +21,8 @@ public class OtpService {
     private static final int MAX_ATTEMPTS = 3; // Brute-force protection: 3 allowed guesses
     private static final int OTP_COOLDOWN_SECONDS = 60; // Rate limiting: 1 OTP per minute
 
-    @Autowired
-    private JavaMailSender mailSender;
-
-    @Value("${spring.mail.username:noreply@coffeecalc.com}")
-    private String fromEmail;
+    @Value("${resend.api.key:}")
+    private String resendApiKey;
 
     // Simple ConcurrentHashMap implementation (replaces Caffeine for build stability)
     private final Map<String, OtpDetails> otpCache = new ConcurrentHashMap<>();
@@ -111,19 +107,42 @@ public class OtpService {
     }
 
     /**
-     * Sends OTP email via Gmail SMTP
+     * Sends OTP email via Resend API
      * @param email Recipient email address
      * @param otp OTP code to send
      */
     public void sendOtpEmail(String email, String otp) {
+        if (resendApiKey == null || resendApiKey.isEmpty()) {
+            log.info("DEMO MODE: OTP for {} is {}", email, otp);
+            return;
+        }
+
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(email);
-            message.setSubject("Your coffeeCalc Verification Code");
-            message.setText("Your verification code is: " + otp + ". It will expire in 5 minutes.");
+            Resend resend = new Resend(resendApiKey);
             
-            mailSender.send(message);
+            SendEmailRequest request = SendEmailRequest.builder()
+                .from("CoffeeCalc <onboarding@resend.dev>")
+                .to(email)
+                .subject("Your CoffeeCalc Verification Code")
+                .html(String.format("""
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <div style="background: #1877f2; padding: 20px; text-align: center;">
+                            <h2 style="color: white; margin: 0;">CoffeeCalc</h2>
+                        </div>
+                        <div style="padding: 30px; background: #f8f9fa;">
+                            <h3>Welcome to CoffeeCalc!</h3>
+                            <p>Your verification code is:</p>
+                            <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+                                <h1 style="font-size: 48px; font-weight: bold; color: #1877f2; letter-spacing: 12px; margin: 0;">%s</h1>
+                            </div>
+                            <p>This code will expire in 5 minutes.</p>
+                            <p style="color: #6c757d; font-size: 14px;">If you didn't request this code, you can safely ignore this email.</p>
+                        </div>
+                    </div>
+                    """, otp))
+                .build();
+
+            resend.emails().send(request);
             log.info("Successfully sent OTP email to {}", email);
         } catch (Exception e) {
             log.error("Failed to send OTP email to {}: {}", email, e.getMessage());
