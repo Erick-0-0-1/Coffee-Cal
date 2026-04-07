@@ -4,117 +4,96 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 180000, // ✅ FIX: Increased to 3 minutes (180000ms) so Render has time to wake up
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 30000, // 30s — enough for a warm server; wake-up is handled separately
 });
 
-// Ingredient API calls
+// ─── Server Wake-Up Utility ───────────────────────────────────────────────────
+// Render free tier sleeps after 15 min of inactivity.
+// Call this on page load so the server is warm before the user submits a form.
+let serverReady = false;
+let wakeUpPromise = null;
+
+export const wakeUpServer = () => {
+  if (serverReady) return Promise.resolve();
+  if (wakeUpPromise) return wakeUpPromise;
+
+  wakeUpPromise = axios
+    .get(`${API_BASE_URL}/public/health`, { timeout: 60000 }) // 60s for cold start
+    .then(() => { serverReady = true; })
+    .catch(() => { serverReady = true; }) // proceed even if health check fails
+    .finally(() => { wakeUpPromise = null; });
+
+  return wakeUpPromise;
+};
+
+// ─── Ingredient Service ───────────────────────────────────────────────────────
 export const ingredientService = {
-  getAll: async () => {
-    const response = await api.get('/ingredients');
-    return response.data;
-  },
-  getById: async (id) => {
-    const response = await api.get(`/ingredients/${id}`);
-    return response.data;
-  },
-  create: async (ingredientData) => {
-    const response = await api.post('/ingredients', ingredientData);
-    return response.data;
-  },
-  update: async (id, ingredientData) => {
-    const response = await api.put(`/ingredients/${id}`, ingredientData);
-    return response.data;
-  },
-  delete: async (id) => {
-    const response = await api.delete(`/ingredients/${id}`);
-    return response.data;
-  },
-  search: async (term) => {
-    const response = await api.get(`/ingredients/search?term=${term}`);
-    return response.data;
-  },
-  getByCategory: async (category) => {
-    const response = await api.get(`/ingredients/category/${category}`);
-    return response.data;
-  },
-  getCategories: async () => {
-    const response = await api.get('/ingredients/categories');
-    return response.data;
-  },
+  getAll: async () => (await api.get('/ingredients')).data,
+  getById: async (id) => (await api.get(`/ingredients/${id}`)).data,
+  create: async (data) => (await api.post('/ingredients', data)).data,
+  update: async (id, data) => (await api.put(`/ingredients/${id}`, data)).data,
+  delete: async (id) => (await api.delete(`/ingredients/${id}`)).data,
+  search: async (term) => (await api.get(`/ingredients/search?term=${term}`)).data,
+  getByCategory: async (cat) => (await api.get(`/ingredients/category/${cat}`)).data,
+  getCategories: async () => (await api.get('/ingredients/categories')).data,
 };
 
-// Recipe API calls
+// ─── Recipe Service ───────────────────────────────────────────────────────────
 export const recipeService = {
-  getAll: async () => {
-    const response = await api.get('/recipes');
-    return response.data;
-  },
-  getById: async (id) => {
-    const response = await api.get(`/recipes/${id}`);
-    return response.data;
-  },
-  create: async (recipeData) => {
-    const response = await api.post('/recipes', recipeData);
-    return response.data;
-  },
-  update: async (id, recipeData) => {
-    const response = await api.put(`/recipes/${id}`, recipeData);
-    return response.data;
-  },
-  delete: async (id) => {
-    const response = await api.delete(`/recipes/${id}`);
-    return response.data;
-  },
-  search: async (term) => {
-    const response = await api.get(`/recipes/search?term=${term}`);
-    return response.data;
-  },
-  getByPriceRange: async (minPrice, maxPrice) => {
-    const response = await api.get(`/recipes/price-range?min=${minPrice}&max=${maxPrice}`);
-    return response.data;
-  },
-  calculateWhatIf: async (id, margin) => {
-    const response = await api.post(`/recipes/${id}/what-if?margin=${margin}`);
-    return response.data;
-  },
-  getStatistics: async () => {
-    const response = await api.get('/recipes/statistics');
-    return response.data;
-  },
+  getAll: async () => (await api.get('/recipes')).data,
+  getById: async (id) => (await api.get(`/recipes/${id}`)).data,
+  create: async (data) => (await api.post('/recipes', data)).data,
+  update: async (id, data) => (await api.put(`/recipes/${id}`, data)).data,
+  delete: async (id) => (await api.delete(`/recipes/${id}`)).data,
+  search: async (term) => (await api.get(`/recipes/search?term=${term}`)).data,
+  getByPriceRange: async (min, max) =>
+    (await api.get(`/recipes/price-range?min=${min}&max=${max}`)).data,
+  calculateWhatIf: async (id, margin) =>
+    (await api.post(`/recipes/${id}/what-if?margin=${margin}`)).data,
+  getStatistics: async () => (await api.get('/recipes/statistics')).data,
 };
 
-// Request interceptor to attach JWT token
+// ─── Request Interceptor: attach JWT ─────────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
+    if (token) config.headers['Authorization'] = `Bearer ${token}`;
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Error handling interceptor
+// ─── Response Interceptor: standardize errors ─────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const standardizedError = {
-      message: error.code === 'ECONNABORTED'
-        ? 'Request timed out. The server may be waking up — please try again in a moment.' 
-        : error.response?.data?.error || error.response?.data || error.message || 'An unexpected error occurred',
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      originalError: error
-    };
-    
-    console.error('API Error:', standardizedError);
-    return Promise.reject(standardizedError);
+    let message;
+
+    if (error.code === 'ECONNABORTED') {
+      message = 'The server took too long to respond. Please try again.';
+    } else if (!error.response) {
+      message = 'Cannot reach the server. Please check your connection.';
+    } else {
+      message =
+        error.response.data?.error ||
+        error.response.data?.message ||
+        error.response.data ||
+        error.message ||
+        'An unexpected error occurred.';
+    }
+
+    if (error.response?.status === 401) {
+      // Token expired — clear auth and redirect
+      localStorage.removeItem('token');
+      delete api.defaults.headers.common['Authorization'];
+      if (!window.location.pathname.includes('/auth')) {
+        window.location.href = '/auth';
+      }
+    }
+
+    console.error('API Error:', { message, status: error.response?.status });
+    return Promise.reject({ message, status: error.response?.status, originalError: error });
   }
 );
 
