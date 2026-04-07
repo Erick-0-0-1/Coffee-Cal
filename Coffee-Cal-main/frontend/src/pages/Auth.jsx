@@ -1,40 +1,50 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, Facebook, Chrome, ArrowRight, Wifi, WifiOff } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Facebook, Chrome, ArrowRight, WifiOff, Coffee } from 'lucide-react';
 import api, { wakeUpServer } from '../services/api';
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [step, setStep] = useState('form');  // 'form' | 'otp'
   const [showPassword, setShowPassword] = useState(false);
-  const [showOtpScreen, setShowOtpScreen] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
+  const [form, setForm] = useState({ email: '', password: '', username: '' });
+  const [pendingEmail, setPendingEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [pendingEmail, setPendingEmail] = useState('');
-  const [serverStatus, setServerStatus] = useState('waking'); // 'waking' | 'ready' | 'offline'
+  const [serverStatus, setServerStatus] = useState('waking');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   const navigate = useNavigate();
 
-  // ── Wake up Render server on page load ──────────────────────────────────────
   useEffect(() => {
-    setServerStatus('waking');
     wakeUpServer()
       .then(() => setServerStatus('ready'))
       .catch(() => setServerStatus('offline'));
   }, []);
 
-  // ── OTP input handler ────────────────────────────────────────────────────────
+  // Cooldown timer for resend
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setStep('form');
+    setError('');
+    setOtp(['', '', '', '', '', '']);
+    setForm({ email: '', password: '', username: '' });
+  };
+
+  // ── OTP input ────────────────────────────────────────────────────────────────
   const handleOtpChange = (index, value) => {
     if (!/^\d*$/.test(value)) return;
-    const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
-    setOtp(newOtp);
-    if (value && index < 5) {
-      document.getElementById(`otp-${index + 1}`)?.focus();
-    }
+    const next = [...otp];
+    next[index] = value.slice(-1);
+    setOtp(next);
+    if (value && index < 5) document.getElementById(`otp-${index + 1}`)?.focus();
   };
 
   const handleOtpKeyDown = (index, e) => {
@@ -43,20 +53,37 @@ const Auth = () => {
     }
   };
 
-  // ── Send OTP (Register flow) ─────────────────────────────────────────────────
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    const next = ['', '', '', '', '', ''];
+    pasted.split('').forEach((ch, i) => { next[i] = ch; });
+    setOtp(next);
+    const focusIdx = Math.min(pasted.length, 5);
+    document.getElementById(`otp-${focusIdx}`)?.focus();
+  };
+
+  // ── Send OTP ─────────────────────────────────────────────────────────────────
   const handleSendOtp = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+    e?.preventDefault();
     setLoading(true);
     setError('');
     try {
-      if (isLogin) {
-        const res = await api.post('/auth/send-login-otp', { username: email });
+      if (mode === 'login') {
+        const res = await api.post('/auth/send-login-otp', { username: form.email });
         setPendingEmail(res.data.email);
       } else {
-        await api.post('/auth/send-otp', { email, username, password });
-        setPendingEmail(email);
+        await api.post('/auth/send-otp', {
+          email: form.email,
+          username: form.username,
+          password: form.password,
+        });
+        setPendingEmail(form.email);
       }
-      setShowOtpScreen(true);
+      setStep('otp');
+      setOtp(['', '', '', '', '', '']);
+      setResendCooldown(60);
     } catch (err) {
       setError(err.message || 'Failed to send OTP. Please try again.');
     } finally {
@@ -66,15 +93,16 @@ const Auth = () => {
 
   // ── Verify OTP ───────────────────────────────────────────────────────────────
   const handleVerifyOtp = async () => {
-    const otpCode = otp.join('');
+    const code = otp.join('');
+    if (code.length < 6) return;
     setLoading(true);
     setError('');
     try {
-      if (isLogin) {
+      if (mode === 'login') {
         const res = await api.post('/auth/login', {
-          username: email,
-          password,
-          otp: otpCode,
+          username: form.email,
+          password: form.password,
+          otp: code,
         });
         localStorage.setItem('token', res.data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
@@ -82,14 +110,14 @@ const Auth = () => {
       } else {
         const res = await api.post('/auth/verify-otp', {
           email: pendingEmail,
-          otp: otpCode,
+          otp: code,
         });
         localStorage.setItem('token', res.data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
         navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.message || 'Invalid OTP code. Please try again.');
+      setError(err.message || 'Invalid or expired code. Please try again.');
       setOtp(['', '', '', '', '', '']);
       document.getElementById('otp-0')?.focus();
     } finally {
@@ -97,275 +125,274 @@ const Auth = () => {
     }
   };
 
-  // ── Login flow ───────────────────────────────────────────────────────────────
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await api.post('/auth/send-login-otp', { username: email });
-      setPendingEmail(res.data.email);
-      setShowOtpScreen(true);
-    } catch (err) {
-      setError(err.message || 'Invalid username or password.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Social login ─────────────────────────────────────────────────────────────
   const handleSocialLogin = (provider) => {
     const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8080';
     window.location.href = `${backendUrl}/oauth2/authorization/${provider}`;
   };
 
-  // ── Server status banner ─────────────────────────────────────────────────────
+  const otpComplete = otp.every(d => d !== '');
+
+  // ── Server banner ─────────────────────────────────────────────────────────────
   const ServerBanner = () => {
     if (serverStatus === 'ready') return null;
     return (
-      <div className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg mb-4 ${
+      <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg mb-4 ${
         serverStatus === 'waking'
-          ? 'bg-yellow-50 border border-yellow-200 text-yellow-700'
+          ? 'bg-amber-50 border border-amber-200 text-amber-700'
           : 'bg-red-50 border border-red-200 text-red-700'
       }`}>
         {serverStatus === 'waking' ? (
           <>
-            <div className="w-3 h-3 rounded-full bg-yellow-400 animate-pulse" />
-            Server is waking up — this may take up to 30 seconds on first load.
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+            <span>Server warming up — first load may take ~30s</span>
           </>
         ) : (
           <>
-            <WifiOff className="w-4 h-4" />
-            Cannot reach the server. Please try again later.
+            <WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Cannot reach the server. Please try again later.</span>
           </>
         )}
       </div>
     );
   };
 
-  // ── OTP Screen ───────────────────────────────────────────────────────────────
-  if (showOtpScreen) {
+  // ── OTP screen ────────────────────────────────────────────────────────────────
+  if (step === 'otp') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-blue-600" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-7 h-7 text-blue-600" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">Check your email</h2>
-            <p className="text-gray-600 mt-2">
-              We sent a 6-digit code to <span className="font-semibold">{pendingEmail}</span>
+            <h2 className="text-xl font-bold text-gray-900">Check your email</h2>
+            <p className="text-gray-500 text-sm mt-1">
+              We sent a 6-digit code to
             </p>
+            <p className="font-semibold text-gray-800 text-sm mt-0.5 break-all">{pendingEmail}</p>
           </div>
 
-          <div className="flex justify-center gap-2 mb-6">
-            {otp.map((digit, index) => (
+          <div className="flex justify-center gap-2 mb-5" onPaste={handleOtpPaste}>
+            {otp.map((digit, i) => (
               <input
-                key={index}
-                id={`otp-${index}`}
+                key={i}
+                id={`otp-${i}`}
                 type="text"
                 inputMode="numeric"
                 maxLength={1}
                 value={digit}
-                onChange={(e) => handleOtpChange(index, e.target.value)}
-                onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
-                autoFocus={index === 0}
+                onChange={e => handleOtpChange(i, e.target.value)}
+                onKeyDown={e => handleOtpKeyDown(i, e)}
+                autoFocus={i === 0}
+                className={`w-11 h-13 text-center text-xl font-bold border-2 rounded-xl outline-none transition-all
+                  ${digit ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-900'}
+                  focus:border-blue-500 focus:ring-2 focus:ring-blue-100`}
+                style={{ height: '52px' }}
               />
             ))}
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 mb-4 text-sm text-center">
+            <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 mb-4 text-sm text-center">
               {error}
             </div>
           )}
 
           <button
             onClick={handleVerifyOtp}
-            disabled={loading || otp.some((d) => !d)}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+            disabled={loading || !otpComplete}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
             {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Verifying...
-              </>
+              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Verifying…</>
             ) : (
-              <>
-                Verify Code
-                <ArrowRight className="w-5 h-5" />
-              </>
+              <><span>Verify code</span><ArrowRight className="w-4 h-4" /></>
             )}
           </button>
 
-          <button
-            onClick={handleSendOtp}
-            disabled={loading}
-            className="w-full mt-4 text-blue-600 hover:text-blue-700 disabled:text-gray-400 font-medium transition-colors"
-          >
-            Resend code
-          </button>
-
-          <button
-            onClick={() => {
-              setShowOtpScreen(false);
-              setOtp(['', '', '', '', '', '']);
-              setError('');
-            }}
-            className="w-full mt-2 text-gray-500 hover:text-gray-700 font-medium transition-colors"
-          >
-            ← Back
-          </button>
+          <div className="flex items-center justify-between mt-4">
+            <button
+              onClick={() => { setStep('form'); setOtp(['', '', '', '', '', '']); setError(''); }}
+              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={handleSendOtp}
+              disabled={loading || resendCooldown > 0}
+              className="text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
+            >
+              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── Main Auth Screen ─────────────────────────────────────────────────────────
+  // ── Main auth screen ──────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl flex flex-col lg:flex-row items-center gap-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-4xl flex flex-col lg:flex-row items-center gap-10">
 
-        {/* Brand */}
-        <div className="flex-1 text-center lg:text-left">
-          <h1 className="text-5xl font-extrabold text-blue-600 mb-4">coffeeCalc</h1>
-          <p className="text-xl text-gray-700 max-w-md">
-            Professional coffee costing calculator for your business. Manage recipes, track costs,
-            and maximize profits.
+        {/* Brand panel */}
+        <div className="flex-1 text-center lg:text-left px-4">
+          <div className="flex items-center gap-3 justify-center lg:justify-start mb-4">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <Coffee className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-3xl font-extrabold text-blue-600">coffeeCalc</h1>
+          </div>
+          <p className="text-gray-600 max-w-sm leading-relaxed">
+            Professional coffee costing calculator. Manage recipes, track costs, and maximize your profits.
           </p>
         </div>
 
-        {/* Auth Card */}
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-2xl p-6">
+        {/* Auth card */}
+        <div className="w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
 
             <ServerBanner />
 
+            {/* Tab toggle */}
+            <div className="flex rounded-xl bg-gray-100 p-1 mb-5">
+              {['login', 'register'].map(m => (
+                <button
+                  key={m}
+                  onClick={() => switchMode(m)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
+                    mode === m
+                      ? 'bg-white shadow text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {m === 'login' ? 'Log in' : 'Register'}
+                </button>
+              ))}
+            </div>
+
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-3 mb-4 text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 mb-4 text-sm">
                 {error}
               </div>
             )}
 
-            {/* Tab toggle */}
-            <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
-              <button
-                onClick={() => { setIsLogin(true); setError(''); }}
-                className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isLogin ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Log In
-              </button>
-              <button
-                onClick={() => { setIsLogin(false); setError(''); }}
-                className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
-                  !isLogin ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Create Account
-              </button>
-            </div>
-
-            {/* Social login */}
-            <div className="space-y-3 mb-6">
+            {/* Social buttons */}
+            <div className="space-y-2 mb-5">
               <button
                 onClick={() => handleSocialLogin('google')}
-                className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-3 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-xl transition-colors text-sm"
               >
-                <Chrome className="w-5 h-5" />
+                <Chrome className="w-4 h-4" />
                 Continue with Google
               </button>
               <button
                 onClick={() => handleSocialLogin('facebook')}
-                className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium py-2.5 rounded-xl transition-colors text-sm"
               >
-                <Facebook className="w-5 h-5" />
+                <Facebook className="w-4 h-4" />
                 Continue with Facebook
               </button>
             </div>
 
-            <div className="relative my-5">
+            <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200" />
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">
-                  or {isLogin ? 'login' : 'sign up'} with email
+              <div className="relative flex justify-center text-xs">
+                <span className="px-3 bg-white text-gray-400">
+                  or {mode === 'login' ? 'log in' : 'register'} with email
                 </span>
               </div>
             </div>
 
-            <form onSubmit={isLogin ? handleLogin : handleSendOtp} className="space-y-4">
-              {!isLogin && (
+            <form onSubmit={handleSendOtp} className="space-y-3">
+              {mode === 'register' && (
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                    value={form.username}
+                    onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                     required
+                    autoComplete="username"
                   />
                 </div>
               )}
 
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder={isLogin ? 'Username or Email' : 'Email address'}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  placeholder={mode === 'login' ? 'Username or email' : 'Email address'}
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   required
+                  autoComplete={mode === 'login' ? 'username' : 'email'}
                 />
               </div>
 
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   required
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword(s => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  tabIndex={-1}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
 
               <button
                 type="submit"
                 disabled={loading || serverStatus === 'offline'}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm mt-1"
               >
                 {loading ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {serverStatus === 'waking' ? 'Waking server...' : 'Please wait...'}
-                  </>
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  {serverStatus === 'waking' ? 'Waking server…' : 'Sending code…'}</>
                 ) : (
-                  isLogin ? 'Log In' : 'Create Account'
+                  <>{mode === 'login' ? 'Log in' : 'Create account'}<ArrowRight className="w-4 h-4" /></>
                 )}
               </button>
             </form>
 
-            {isLogin && (
-              <div className="text-center mt-4">
-                <a href="#" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+            {mode === 'login' && (
+              <div className="text-center mt-3">
+                <a href="#" className="text-blue-600 hover:text-blue-700 text-xs font-medium">
                   Forgot password?
                 </a>
               </div>
             )}
+
+            <p className="text-center text-xs text-gray-400 mt-4">
+              {mode === 'login' ? (
+                <>No account?{' '}
+                  <button onClick={() => switchMode('register')} className="text-blue-600 hover:underline font-medium">
+                    Register
+                  </button>
+                </>
+              ) : (
+                <>Already have an account?{' '}
+                  <button onClick={() => switchMode('login')} className="text-blue-600 hover:underline font-medium">
+                    Log in
+                  </button>
+                </>
+              )}
+            </p>
           </div>
         </div>
       </div>
