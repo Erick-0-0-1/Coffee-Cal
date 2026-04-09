@@ -28,7 +28,7 @@ public class SecurityConfig {
 
     private final JwtRequestFilter jwtRequestFilter;
     private final CustomUserDetailsService userDetailsService;
-    private final PasswordEncoder passwordEncoder; // ← injected from PasswordConfig, not redefined here
+    private final PasswordEncoder passwordEncoder;
 
     public SecurityConfig(JwtRequestFilter jwtRequestFilter,
                           CustomUserDetailsService userDetailsService,
@@ -58,12 +58,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        
+        // Allowed origins remain restricted to your actual domains for security
         configuration.setAllowedOrigins(List.of(
             "https://coffee-cal.vercel.app",
             "http://localhost:5173"
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        
+        // ✅ FIX: Allow all methods and headers to prevent Axios/CORS conflicts
+        configuration.setAllowedMethods(List.of("*"));
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
