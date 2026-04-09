@@ -10,7 +10,7 @@ const PdfExportModal = ({ isOpen, onClose, recipeId, recipeName }) => {
     notes: true
   });
   const [exporting, setExporting] = useState(false);
-  const [error, setError] = useState(''); // Added error state
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
@@ -23,10 +23,11 @@ const PdfExportModal = ({ isOpen, onClose, recipeId, recipeName }) => {
 
   const handleExport = async () => {
     setExporting(true);
-    setError(''); // Clear any previous errors when trying again
+    setError(''); 
     
     try {
-      const response = await api.post(`/api/recipes/${recipeId}/export-pdf`, 
+      // FIX 1: Changed from `/api/recipes/...` to `/recipes/...` to prevent double /api/api
+      const response = await api.post(`/recipes/${recipeId}/export-pdf`, 
         { recipeId, sections },
         { responseType: 'blob' }
       );
@@ -39,18 +40,14 @@ const PdfExportModal = ({ isOpen, onClose, recipeId, recipeName }) => {
       link.click();
       link.remove();
       
-      onClose(); // Close modal on success
+      onClose(); 
     } catch (err) {
       console.error('PDF export failed:', err);
       
-      // Axios returns blob errors weirdly, so we handle it to show a readable message
-      if (err.response && err.response.data instanceof Blob) {
-         setError("Server error: Unable to generate the PDF right now.");
-      } else {
-         setError(err.message || 'Failed to generate PDF. Please try again.');
-      }
+      // FIX 2: Safely set a string error to prevent React crash (Error #31)
+      setError("Server error: Could not generate PDF. Please try again.");
     } finally {
-      setExporting(false); // Make sure the spinner stops even if it fails
+      setExporting(false); 
     }
   };
 
@@ -128,7 +125,6 @@ const PdfExportModal = ({ isOpen, onClose, recipeId, recipeName }) => {
           </div>
         </div>
 
-        {/* Added Error Display UI */}
         {error && (
           <div className="px-6 pb-2">
             <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm px-4 py-3 rounded-lg text-center font-medium">
