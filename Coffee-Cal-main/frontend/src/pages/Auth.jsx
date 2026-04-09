@@ -15,7 +15,7 @@ const Auth = () => {
   const [serverStatus, setServerStatus] = useState('waking');
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Kept this in case you need it for other routes later
 
   useEffect(() => {
     wakeUpServer()
@@ -106,7 +106,10 @@ const Auth = () => {
         });
         localStorage.setItem('token', res.data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-        navigate('/dashboard');
+        
+        // FIX: Force a hard redirect to trigger App.jsx to read the new token
+        window.location.href = '/dashboard';
+        
       } else {
         const res = await api.post('/auth/verify-otp', {
           email: pendingEmail,
@@ -114,7 +117,9 @@ const Auth = () => {
         });
         localStorage.setItem('token', res.data.token);
         api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-        navigate('/dashboard');
+        
+        // FIX: Force a hard redirect to trigger App.jsx to read the new token
+        window.location.href = '/dashboard';
       }
     } catch (err) {
       setError(err.message || 'Invalid or expired code. Please try again.');
