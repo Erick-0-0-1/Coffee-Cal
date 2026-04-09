@@ -197,6 +197,10 @@ public class IngredientService {
         ingredient.setPackSize(dto.getPackSize());
         ingredient.setPackPrice(dto.getPackPrice());
         ingredient.setNotes(dto.getNotes());
+        
+        // ✅ FIX: Attach a default shop ID so PostgreSQL accepts the save
+        ingredient.setShopId(1L); 
+        
         return ingredient;
     }
 }
