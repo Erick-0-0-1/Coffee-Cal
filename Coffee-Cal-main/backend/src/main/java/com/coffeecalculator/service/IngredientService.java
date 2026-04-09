@@ -198,8 +198,10 @@ public class IngredientService {
         ingredient.setPackPrice(dto.getPackPrice());
         ingredient.setNotes(dto.getNotes());
         
-        // ✅ FIX: Attach a default shop ID so PostgreSQL accepts the save
-        ingredient.setShopId(1L); 
+        // ✅ FIX: Create a dummy Shop with ID 1 so the database constraint passes
+        com.coffeecalculator.model.Shop defaultShop = new com.coffeecalculator.model.Shop();
+        defaultShop.setId(1L);
+        ingredient.setShop(defaultShop);
         
         return ingredient;
     }
