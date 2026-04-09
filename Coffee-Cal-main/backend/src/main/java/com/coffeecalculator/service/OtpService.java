@@ -3,14 +3,15 @@ package com.coffeecalculator.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 import java.security.SecureRandom;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -23,9 +24,11 @@ public class OtpService {
     private static final int OTP_COOLDOWN_MS    = 60 * 1000;       // 1 minute
     private static final int MAX_ATTEMPTS       = 3;
 
-    private final JavaMailSender mailSender;
+    // ✅ FIX: Injecting Resend keys instead of JavaMailSender
+    @Value("${RESEND_API_KEY}")
+    private String resendApiKey;
 
-    @Value("${spring.mail.username}")
+    @Value("${APP_EMAIL_SENDER}")
     private String senderEmail;
 
     // email → OtpDetails
@@ -35,9 +38,7 @@ public class OtpService {
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public OtpService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    // Constructor removed because we no longer inject JavaMailSender
 
     // ── Inner class ────────────────────────────────────────────────────────────
     public static class OtpDetails {
@@ -115,27 +116,34 @@ public class OtpService {
     }
 
     // ── Send OTP Email ─────────────────────────────────────────────────────────
+    // ✅ FIX: Using Resend HTTP API to bypass Render firewall (Port 443)
     public void sendOtpEmail(String email, String otp) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            RestTemplate restTemplate = new RestTemplate();
+            String url = "https://api.resend.com/emails";
 
-            helper.setFrom("CoffeeCalc <" + senderEmail + ">");
-            helper.setTo(email);
-            helper.setSubject("Your CoffeeCalc Verification Code");
-            helper.setText(buildEmailHtml(otp), true);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(resendApiKey);
 
-            mailSender.send(message);
-            log.info("OTP email sent to {}", email);
-        } catch (MessagingException e) {
-            log.error("Failed to send OTP email to {}: {}", email, e.getMessage());
-            // Re-throw so the controller can return a proper error to the client
+            Map<String, Object> body = Map.of(
+                    "from", "CoffeeCalc <" + senderEmail + ">",
+                    "to", List.of(email),
+                    "subject", "Your CoffeeCalc Verification Code",
+                    "html", buildEmailHtml(otp)
+            );
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            restTemplate.postForEntity(url, request, String.class);
+
+            log.info("OTP email sent via Resend HTTP API to {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send OTP via Resend to {}: {}", email, e.getMessage());
             throw new RuntimeException("Failed to send verification email. Please try again.");
         }
     }
 
     // ── Scheduled cache cleanup (runs every 10 minutes) ────────────────────────
-    // ✅ FIX: prevents memory leak from unbounded cache growth
     @Scheduled(fixedDelay = 600_000)
     public void cleanExpiredEntries() {
         long now = System.currentTimeMillis();
