@@ -198,10 +198,10 @@ public class IngredientService {
         ingredient.setPackPrice(dto.getPackPrice());
         ingredient.setNotes(dto.getNotes());
         
-        // ✅ FIX: Create a dummy Shop with ID 1 so the database constraint passes
-        com.coffeecalculator.model.Shop defaultShop = new com.coffeecalculator.model.Shop();
+        // ✅ FIX: Use CoffeeShop instead of Shop!
+        com.coffeecalculator.model.CoffeeShop defaultShop = new com.coffeecalculator.model.CoffeeShop();
         defaultShop.setId(1L);
-        ingredient.setShop(defaultShop);
+        ingredient.setCoffeeShop(defaultShop);
         
         return ingredient;
     }
