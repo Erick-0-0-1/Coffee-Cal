@@ -28,7 +28,6 @@ public class RecipeDTO {
 
     private BigDecimal totalCost;
 
-    @NotNull(message = "Target margin is required")
     @Positive(message = "Target margin must be positive")
     private BigDecimal targetMarginPercent;
 
