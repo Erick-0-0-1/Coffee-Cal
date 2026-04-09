@@ -45,7 +45,8 @@ public class SecurityConfig {
             .cors(org.springframework.security.config.Customizer.withDefaults())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/public/**", "/h2-console/**").permitAll()
+                // ✅ FIX: Added "/error" so Spring can expose real HTTP error codes instead of masking them behind a 403
+                .requestMatchers("/api/auth/**", "/api/public/**", "/h2-console/**", "/error").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
             )
@@ -65,7 +66,7 @@ public class SecurityConfig {
             "http://localhost:5173"
         ));
         
-        // ✅ FIX: Allow all methods and headers to prevent Axios/CORS conflicts
+        // Allow all methods and headers to prevent Axios/CORS conflicts
         configuration.setAllowedMethods(List.of("*"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
