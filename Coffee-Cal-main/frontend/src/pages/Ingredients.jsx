@@ -10,13 +10,13 @@ const Ingredients = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Form State
+  // ✅ FIX 1: Updated state to match backend DTO (baseUnit and packPrice)
   const [newItem, setNewItem] = useState({
     name: '',
     category: 'Beans',
     packSize: '',
-    packUnit: 'g', // Default to grams
-    totalPrice: ''
+    baseUnit: 'g', // Changed from packUnit
+    packPrice: ''  // Changed from totalPrice
   });
 
   const categories = ['Beans', 'Milk', 'Syrup', 'Powder', 'Sauce', 'Topping', 'Packaging'];
@@ -41,27 +41,32 @@ const Ingredients = () => {
     }
   };
 
+  // ✅ FIX 2: Updated calculation to use packPrice
   const calculateUnitCost = (item) => {
-    if (!item.totalPrice || !item.packSize) return 0;
-    return item.totalPrice / item.packSize;
+    if (!item.packPrice || !item.packSize) return 0;
+    return item.packPrice / item.packSize;
   };
 
   const handleSave = async () => {
-    if (!newItem.name || !newItem.packSize || !newItem.totalPrice) return;
+    // ✅ FIX 3: Updated validation to check for packPrice
+    if (!newItem.name || !newItem.packSize || !newItem.packPrice) return;
 
     try {
       setLoading(true);
       setError('');
+      
+      // ✅ FIX 4: The payload now perfectly matches the backend expectations
       const ingredientToSave = {
         ...newItem,
         packSize: parseFloat(newItem.packSize),
-        totalPrice: parseFloat(newItem.totalPrice),
+        packPrice: parseFloat(newItem.packPrice),
         currentStock: 0 // Default stock
       };
 
       await ingredientService.create(ingredientToSave);
       setIsModalOpen(false);
-      setNewItem({ name: '', category: 'Beans', packSize: '', packUnit: 'g', totalPrice: '' });
+      // Reset with correct keys
+      setNewItem({ name: '', category: 'Beans', packSize: '', baseUnit: 'g', packPrice: '' });
       loadIngredients();
     } catch (error) {
       setError(error.message || 'Failed to save ingredient');
@@ -108,7 +113,7 @@ const Ingredients = () => {
             </div>
           )}
 
-          {/* HEADER */}
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[#d4a373]">Inventory</h1>
@@ -165,8 +170,9 @@ const Ingredients = () => {
                   <span className="text-[10px] bg-stone-800 text-stone-400 px-2 py-0.5 rounded border border-stone-700 uppercase tracking-wider">{item.category}</span>
                 </div>
                 <div className="text-sm text-stone-500 flex gap-4">
-                  <span>₱{item.totalPrice} / {item.packSize}{item.packUnit}</span>
-                  <span className="text-[#d4a373] font-mono">Cost: ₱{calculateUnitCost(item).toFixed(4)}/{item.packUnit}</span>
+                  {/* ✅ FIX 5: Updated rendering to display the backend properties correctly */}
+                  <span>₱{item.packPrice} / {item.packSize}{item.baseUnit}</span>
+                  <span className="text-[#d4a373] font-mono">Cost: ₱{calculateUnitCost(item).toFixed(4)}/{item.baseUnit}</span>
                 </div>
               </div>
               <button onClick={() => handleDelete(item.id)} className="p-2 text-stone-600 hover:text-red-400 transition-colors">
@@ -231,7 +237,6 @@ const Ingredients = () => {
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-stone-500 uppercase">Size</label>
-                  {/* Added h-12 to force height */}
                   <input
                     type="number"
                     placeholder="1000"
@@ -243,11 +248,12 @@ const Ingredients = () => {
 
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-stone-500 uppercase">Unit</label>
-                  <div className="relative h-12"> {/* Container matches height */}
+                  <div className="relative h-12">
                     <select
                       className="w-full h-full bg-stone-900 border border-stone-700 rounded-lg pl-3 pr-8 text-white appearance-none focus:border-[#d4a373] outline-none"
-                      value={newItem.packUnit}
-                      onChange={e => setNewItem({...newItem, packUnit: e.target.value})}
+                      // ✅ FIX 6: Bound to baseUnit
+                      value={newItem.baseUnit}
+                      onChange={e => setNewItem({...newItem, baseUnit: e.target.value})}
                     >
                       {units.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
                     </select>
@@ -261,8 +267,9 @@ const Ingredients = () => {
                     type="number"
                     placeholder="0.00"
                     className="w-full h-12 bg-stone-900 border border-stone-700 rounded-lg px-3 text-white focus:border-[#d4a373] outline-none"
-                    value={newItem.totalPrice}
-                    onChange={e => setNewItem({...newItem, totalPrice: e.target.value})}
+                    // ✅ FIX 7: Bound to packPrice
+                    value={newItem.packPrice}
+                    onChange={e => setNewItem({...newItem, packPrice: e.target.value})}
                   />
                 </div>
               </div>
