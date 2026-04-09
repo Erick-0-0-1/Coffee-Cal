@@ -20,7 +20,8 @@ public class JwtTokenProvider {
     @Value("${jwt.secret:your-super-secret-key-that-is-at-least-32-characters-long}")
     private String secretKey;
 
-    @Value("${jwt.expiration-ms:3600000}")
+    // ✅ FIX: Increased default expiration to 24 hours (86400000 ms)
+    @Value("${jwt.expiration-ms:86400000}")
     private long tokenExpirationMs;
 
     public String generateToken(UserDetails userDetails) {
