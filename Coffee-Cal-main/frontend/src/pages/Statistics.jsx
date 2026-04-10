@@ -57,7 +57,7 @@ const Statistics = ({ refreshTrigger }) => {
           color="from-matcha-500 to-matcha-600"
         />
         <MetricCard
-          icon={DollarSign}
+          icon={PhilippinePeso}
           label="Avg Selling Price"
           value={`₱${stats?.averageSellingPrice?.toFixed(2) || '0.00'}`}
           color="from-caramel-500 to-caramel-600"
