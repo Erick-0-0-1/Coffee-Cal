@@ -172,6 +172,104 @@ const RecipeDetail = ({ onUpdate }) => {
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
+  // --- NEW: Custom PDF Export Function ---
+  const handleExportPDF = () => {
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
+    
+    const ingredientsHtml = formData.ingredients && formData.ingredients.length > 0
+      ? formData.ingredients.map(recipeIng => {
+          // Resolve the actual ingredient data to get the name and unit
+          const ingredient = ingredients.find((i) => i.id === parseInt(recipeIng.ingredientId));
+          const name = ingredient ? `${ingredient.name} (${ingredient.category})` : 'Unknown Ingredient (Please select)';
+          const unit = ingredient ? ingredient.baseUnit : '';
+          const qty = recipeIng.quantity || '0';
+          
+          return `
+            <tr>
+              <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb;">${name}</td>
+              <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${qty} ${unit}</td>
+            </tr>
+          `;
+        }).join('')
+      : '<tr><td colspan="2" style="padding: 12px 8px; text-align: center; color: #6b7280;">No ingredients listed</td></tr>';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Recipe Export - ${formData.drinkName || 'Untitled Recipe'}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #111827; max-width: 800px; margin: 0 auto; }
+            .header { border-bottom: 3px solid #422006; padding-bottom: 24px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+            h1 { color: #422006; margin: 0; font-size: 32px; }
+            .recipe-image { max-height: 150px; max-width: 200px; border-radius: 12px; object-fit: contain; }
+            .summary { display: flex; justify-content: space-between; margin-bottom: 40px; background: #f3f4f6; padding: 24px; border-radius: 12px; }
+            .summary-item { text-align: center; flex: 1; }
+            .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em; }
+            .summary-value { font-size: 24px; font-weight: 800; color: #111827; margin-top: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th { background: #422006; color: white; padding: 12px 8px; text-align: left; font-size: 14px; text-transform: uppercase; }
+            th.right { text-align: right; }
+            .notes { margin-top: 40px; padding-top: 24px; border-top: 1px dashed #d1d5db; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>${formData.drinkName || 'Untitled Recipe'}</h1>
+            </div>
+            ${imagePreviewUrl ? `<img src="${imagePreviewUrl}" class="recipe-image" alt="Recipe Preview" />` : ''}
+          </div>
+          
+          <div class="summary">
+            <div class="summary-item">
+              <div class="summary-label">Total Cost</div>
+              <div class="summary-value">₱${calculatedData.totalCost.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Suggested Price</div>
+              <div class="summary-value">₱${calculatedData.suggestedSellingPrice.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Margin</div>
+              <div class="summary-value">${calculatedData.actualMarginPercent.toFixed(1)}%</div>
+            </div>
+          </div>
+
+          <h2 style="font-size: 20px; color: #374151; margin-bottom: 16px;">Ingredients List</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Ingredient</th>
+                <th class="right">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ingredientsHtml}
+            </tbody>
+          </table>
+          
+          ${formData.notes ? `
+            <div class="notes">
+              <strong style="color: #374151;">Preparation Notes:</strong>
+              <p style="color: #4b5563; line-height: 1.6; margin-top: 8px; white-space: pre-wrap;">${formData.notes}</p>
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Trigger print once the window renders the content and image
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 250); // slight delay ensures base64 image renders before print dialog opens
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -237,10 +335,10 @@ const RecipeDetail = ({ onUpdate }) => {
           </div>
         </div>
 
-        {/* --- FIXED: PDF Export Button Positioning --- */}
+        {/* --- WIRED TO NEW PDF EXPORT FUNCTION --- */}
         <button 
           type="button"
-          onClick={() => window.print()} 
+          onClick={handleExportPDF} 
           className="flex items-center justify-center space-x-2.5 bg-white hover:bg-gray-50 dark:bg-coffee-800 dark:hover:bg-coffee-700 text-gray-700 dark:text-cream-50 px-6 py-3 rounded-xl border border-gray-300 dark:border-coffee-600 shadow-sm transition-all active:scale-95 print:hidden shrink-0"
           title="Save as PDF for your records"
         >
