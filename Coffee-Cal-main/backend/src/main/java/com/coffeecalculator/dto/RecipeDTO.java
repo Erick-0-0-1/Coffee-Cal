@@ -18,7 +18,7 @@ public class RecipeDTO {
 
     private Long id;
 
-    // Added shopId to link the recipe to a coffee shop
+    // This is the missing field causing the 400 Bad Request
     @NotNull(message = "Shop ID is required")
     private Long shopId;
 
@@ -37,10 +37,10 @@ public class RecipeDTO {
     private BigDecimal actualMarginPercent;
 
     private String notes;
-
     private String complexityLevel;
     private String pricingCategory;
     
+    // Dashboard and Calculation fields
     private String title;
     private String primaryIngredient;
     private Double averageRating;
