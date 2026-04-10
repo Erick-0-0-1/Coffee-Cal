@@ -387,6 +387,24 @@ const RecipeDetail = ({ onUpdate }) => {
               <p className="text-xs text-gray-500 dark:text-coffee-400">
                 This will automatically update the Suggested Selling Price below.
               </p>
+
+              {/* Quick-Select Margin Buttons */}
+              <div className="flex gap-2 mt-3">
+                {[40, 50, 70].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, targetMarginPercent: preset.toString() })}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                      parseFloat(formData.targetMarginPercent) === preset
+                        ? 'bg-coffee-600 text-white border-coffee-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50 dark:bg-coffee-800 dark:text-cream-200 dark:border-coffee-600'
+                    }`}
+                  >
+                    {preset}%
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* --- NEW FEATURE: Final Recipe Image Upload --- */}

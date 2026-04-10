@@ -52,16 +52,16 @@ export const recipeService = {
   getStatistics: async () => (await api.get('/recipes/statistics')).data,
 };
 
-// ─── Request Interceptor: attach JWT & Inject shopId ─────────────────────────
+// ─── Request Interceptor: attach JWT & Inject shopId & targetMarginPercent ────
 api.interceptors.request.use(
   (config) => {
     // 1. Attach JWT Token
     const token = localStorage.getItem('token');
     if (token) config.headers['Authorization'] = `Bearer ${token}`;
 
-    // 2. Inject shopId for POST/PUT requests to prevent 400 Validation Errors
+    // 2. Inject required fields for POST/PUT requests to prevent 400 Validation Errors
     const shopId = localStorage.getItem('shopId');
-    if (shopId && (config.method === 'post' || config.method === 'put')) {
+    if (config.method === 'post' || config.method === 'put') {
       let body = config.data;
       
       // If data is a JSON string, parse it
@@ -73,11 +73,18 @@ api.interceptors.request.use(
         }
       }
 
-      // If data is an object, ensure shopId is present
+      // If data is an object, ensure required fields are present
       if (typeof body === 'object' && body !== null) {
-        if (!body.shopId) {
+        // Inject shopId
+        if (shopId && !body.shopId) {
           body.shopId = parseInt(shopId);
         }
+        
+        // Inject default targetMarginPercent if missing (fixes the validation crash)
+        if (body.targetMarginPercent === undefined) {
+          body.targetMarginPercent = 0;
+        }
+        
         config.data = body; 
       }
     }
