@@ -55,12 +55,14 @@ export default function Statistics() {
   };
 
   // --- PRE-COMPUTATIONS (Base Data) ---
-  const activeRecipes = recipes.filter(r => parseFloat(r.sellingPrice) > 0);
+  // FIX 1: Removed the `> 0` filter so even test recipes with no ingredients (₱0 price) will show up!
+  const activeRecipes = recipes; 
   
   // Sort and analyze all recipes
   const sortedRecipes = [...activeRecipes].map(r => {
     const cost = calculateRecipeCost(r.ingredients);
-    const price = parseFloat(r.sellingPrice);
+    // FIX 2: Updated to suggestedSellingPrice and added a fallback to 0
+    const price = parseFloat(r.suggestedSellingPrice) || 0; 
     const profit = price - cost;
     const margin = price > 0 ? (profit / price) * 100 : 0;
     const suggestedPrice = cost > 0 ? cost / (1 - (targetMargin / 100)) : 0;
@@ -99,9 +101,9 @@ export default function Statistics() {
   };
   const removeProjectedSale = (index) => setProjectedSales(projectedSales.filter((_, i) => i !== index));
 
-
   // --- COST ANALYSIS MATH ---
-  const avgSellingPrice = activeRecipes.length > 0 ? (activeRecipes.reduce((sum, r) => sum + parseFloat(r.sellingPrice || 0), 0) / activeRecipes.length) : 0;
+  // FIX 3: Updated sellingPrice to suggestedSellingPrice here as well
+  const avgSellingPrice = activeRecipes.length > 0 ? (activeRecipes.reduce((sum, r) => sum + (parseFloat(r.suggestedSellingPrice) || 0), 0) / activeRecipes.length) : 0;
   const avgCostPerCup = activeRecipes.length > 0 ? (activeRecipes.reduce((sum, r) => sum + calculateRecipeCost(r.ingredients || []), 0) / activeRecipes.length) : 0;
   const overallAverageMargin = avgSellingPrice > 0 ? (((avgSellingPrice - avgCostPerCup) / avgSellingPrice) * 100) : 0;
   const overallCOGSPercentage = avgSellingPrice > 0 ? ((avgCostPerCup / avgSellingPrice) * 100) : 0;
