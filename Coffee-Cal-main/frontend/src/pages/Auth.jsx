@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, Facebook, Chrome, ArrowRight, WifiOff, Coffee } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Facebook, Chrome, ArrowRight, WifiOff, Coffee } from 'lucide-react';
 import api, { wakeUpServer } from '../services/api';
 
 const Auth = () => {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [step, setStep] = useState('form');  // 'form' | 'otp'
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [form, setForm] = useState({ email: '', password: '', username: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [pendingEmail, setPendingEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [serverStatus, setServerStatus] = useState('waking');
   const [resendCooldown, setResendCooldown] = useState(0);
-
-  const navigate = useNavigate(); // Kept this in case you need it for other routes later
 
   useEffect(() => {
     wakeUpServer()
@@ -23,20 +20,11 @@ const Auth = () => {
       .catch(() => setServerStatus('offline'));
   }, []);
 
-  // Cooldown timer for resend
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [resendCooldown]);
-
-  const switchMode = (newMode) => {
-    setMode(newMode);
-    setStep('form');
-    setError('');
-    setOtp(['', '', '', '', '', '']);
-    setForm({ email: '', password: '', username: '' });
-  };
 
   // ── OTP input ────────────────────────────────────────────────────────────────
   const handleOtpChange = (index, value) => {
@@ -64,23 +52,15 @@ const Auth = () => {
     document.getElementById(`otp-${focusIdx}`)?.focus();
   };
 
-  // ── Send OTP ─────────────────────────────────────────────────────────────────
+  // ── Send Login OTP ───────────────────────────────────────────────────────────
   const handleSendOtp = async (e) => {
     e?.preventDefault();
     setLoading(true);
     setError('');
     try {
-      if (mode === 'login') {
-        const res = await api.post('/auth/send-login-otp', { username: form.email });
-        setPendingEmail(res.data.email);
-      } else {
-        await api.post('/auth/send-otp', {
-          email: form.email,
-          username: form.username,
-          password: form.password,
-        });
-        setPendingEmail(form.email);
-      }
+      // Direct call to login OTP endpoint
+      const res = await api.post('/auth/send-login-otp', { username: form.email });
+      setPendingEmail(res.data.email);
       setStep('otp');
       setOtp(['', '', '', '', '', '']);
       setResendCooldown(60);
@@ -98,29 +78,17 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      if (mode === 'login') {
-        const res = await api.post('/auth/login', {
-          username: form.email,
-          password: form.password,
-          otp: code,
-        });
-        localStorage.setItem('token', res.data.token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-        
-        // FIX: Force a hard redirect to trigger App.jsx to read the new token
-        window.location.href = '/dashboard';
-        
-      } else {
-        const res = await api.post('/auth/verify-otp', {
-          email: pendingEmail,
-          otp: code,
-        });
-        localStorage.setItem('token', res.data.token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
-        
-        // FIX: Force a hard redirect to trigger App.jsx to read the new token
-        window.location.href = '/dashboard';
-      }
+      const res = await api.post('/auth/login', {
+        username: form.email,
+        password: form.password,
+        otp: code,
+      });
+      localStorage.setItem('token', res.data.token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+      
+      // Force a hard redirect to ensure the app state refreshes with the new token
+      window.location.href = '/dashboard';
+      
     } catch (err) {
       setError(err.message || 'Invalid or expired code. Please try again.');
       setOtp(['', '', '', '', '', '']);
@@ -137,25 +105,18 @@ const Auth = () => {
 
   const otpComplete = otp.every(d => d !== '');
 
-  // ── Server banner ─────────────────────────────────────────────────────────────
   const ServerBanner = () => {
     if (serverStatus === 'ready') return null;
     return (
       <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-lg mb-4 ${
-        serverStatus === 'waking'
-          ? 'bg-amber-50 border border-amber-200 text-amber-700'
-          : 'bg-red-50 border border-red-200 text-red-700'
+        serverStatus === 'waking' ? 'bg-amber-50 border border-amber-200 text-amber-700' : 'bg-red-50 border border-red-200 text-red-700'
       }`}>
         {serverStatus === 'waking' ? (
-          <>
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
-            <span>Server warming up — first load may take ~30s</span>
-          </>
+          <><div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+            <span>Server warming up — first load may take ~30s</span></>
         ) : (
-          <>
-            <WifiOff className="w-4 h-4 flex-shrink-0" />
-            <span>Cannot reach the server. Please try again later.</span>
-          </>
+          <><WifiOff className="w-4 h-4 flex-shrink-0" />
+            <span>Cannot reach the server. Please try again later.</span></>
         )}
       </div>
     );
@@ -171,21 +132,14 @@ const Auth = () => {
               <Mail className="w-7 h-7 text-blue-600" />
             </div>
             <h2 className="text-xl font-bold text-gray-900">Check your email</h2>
-            <p className="text-gray-500 text-sm mt-1">
-              We sent a 6-digit code to
-            </p>
+            <p className="text-gray-500 text-sm mt-1">We sent a 6-digit code to</p>
             <p className="font-semibold text-gray-800 text-sm mt-0.5 break-all">{pendingEmail}</p>
           </div>
 
           <div className="flex justify-center gap-2 mb-5" onPaste={handleOtpPaste}>
             {otp.map((digit, i) => (
               <input
-                key={i}
-                id={`otp-${i}`}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
+                key={i} id={`otp-${i}`} type="text" inputMode="numeric" maxLength={1} value={digit}
                 onChange={e => handleOtpChange(i, e.target.value)}
                 onKeyDown={e => handleOtpKeyDown(i, e)}
                 autoFocus={i === 0}
@@ -197,36 +151,19 @@ const Auth = () => {
             ))}
           </div>
 
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 mb-4 text-sm text-center">
-              {error}
-            </div>
-          )}
+          {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 mb-4 text-sm text-center">{error}</div>}
 
           <button
             onClick={handleVerifyOtp}
             disabled={loading || !otpComplete}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            {loading ? (
-              <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Verifying…</>
-            ) : (
-              <><span>Verify code</span><ArrowRight className="w-4 h-4" /></>
-            )}
+            {loading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Verifying…</> : <><span>Verify code</span><ArrowRight className="w-4 h-4" /></>}
           </button>
 
           <div className="flex items-center justify-between mt-4">
-            <button
-              onClick={() => { setStep('form'); setOtp(['', '', '', '', '', '']); setError(''); }}
-              className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              ← Back
-            </button>
-            <button
-              onClick={handleSendOtp}
-              disabled={loading || resendCooldown > 0}
-              className="text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed font-medium transition-colors"
-            >
+            <button onClick={() => { setStep('form'); setOtp(['', '', '', '', '', '']); setError(''); }} className="text-sm text-gray-500 hover:text-gray-700 transition-colors">← Back</button>
+            <button onClick={handleSendOtp} disabled={loading || resendCooldown > 0} className="text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400 disabled:cursor-not-allowed font-medium transition-colors">
               {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
             </button>
           </div>
@@ -235,7 +172,7 @@ const Auth = () => {
     );
   }
 
-  // ── Main auth screen ──────────────────────────────────────────────────────────
+  // ── Main login screen ──────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl flex flex-col lg:flex-row items-center gap-10">
@@ -259,84 +196,36 @@ const Auth = () => {
 
             <ServerBanner />
 
-            {/* Tab toggle */}
-            <div className="flex rounded-xl bg-gray-100 p-1 mb-5">
-              {['login', 'register'].map(m => (
-                <button
-                  key={m}
-                  onClick={() => switchMode(m)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
-                    mode === m
-                      ? 'bg-white shadow text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {m === 'login' ? 'Log in' : 'Register'}
-                </button>
-              ))}
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 mb-4 text-sm">
-                {error}
-              </div>
-            )}
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+            <p className="text-gray-500 text-sm mb-6">Log in to manage your coffee recipes</p>
 
             {/* Social buttons */}
             <div className="space-y-2 mb-5">
-              <button
-                onClick={() => handleSocialLogin('google')}
-                className="w-full flex items-center justify-center gap-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-xl transition-colors text-sm"
-              >
-                <Chrome className="w-4 h-4" />
-                Continue with Google
+              <button onClick={() => handleSocialLogin('google')} className="w-full flex items-center justify-center gap-2.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 rounded-xl transition-colors text-sm">
+                <Chrome className="w-4 h-4" /> Continue with Google
               </button>
-              <button
-                onClick={() => handleSocialLogin('facebook')}
-                className="w-full flex items-center justify-center gap-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium py-2.5 rounded-xl transition-colors text-sm"
-              >
-                <Facebook className="w-4 h-4" />
-                Continue with Facebook
+              <button onClick={() => handleSocialLogin('facebook')} className="w-full flex items-center justify-center gap-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white font-medium py-2.5 rounded-xl transition-colors text-sm">
+                <Facebook className="w-4 h-4" /> Continue with Facebook
               </button>
             </div>
 
             <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-3 bg-white text-gray-400">
-                  or {mode === 'login' ? 'log in' : 'register'} with email
-                </span>
-              </div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+              <div className="relative flex justify-center text-xs"><span className="px-3 bg-white text-gray-400">or use your email</span></div>
             </div>
 
-            <form onSubmit={handleSendOtp} className="space-y-3">
-              {mode === 'register' && (
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Username"
-                    value={form.username}
-                    onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
-                    required
-                    autoComplete="username"
-                  />
-                </div>
-              )}
+            {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 mb-4 text-sm">{error}</div>}
 
+            <form onSubmit={handleSendOtp} className="space-y-3">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder={mode === 'login' ? 'Username or email' : 'Email address'}
+                  placeholder="Username or email"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   required
-                  autoComplete={mode === 'login' ? 'username' : 'email'}
                 />
               </div>
 
@@ -349,7 +238,6 @@ const Auth = () => {
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
                   required
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 />
                 <button
                   type="button"
@@ -366,38 +254,15 @@ const Auth = () => {
                 disabled={loading || serverStatus === 'offline'}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm mt-1"
               >
-                {loading ? (
-                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {serverStatus === 'waking' ? 'Waking server…' : 'Sending code…'}</>
-                ) : (
-                  <>{mode === 'login' ? 'Log in' : 'Create account'}<ArrowRight className="w-4 h-4" /></>
-                )}
+                {loading ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  {serverStatus === 'waking' ? 'Waking server…' : 'Sending code…'}</> : <>Continue <ArrowRight className="w-4 h-4" /></>}
               </button>
             </form>
 
-            {mode === 'login' && (
-              <div className="text-center mt-3">
-                <a href="#" className="text-blue-600 hover:text-blue-700 text-xs font-medium">
-                  Forgot password?
-                </a>
-              </div>
-            )}
-
-            <p className="text-center text-xs text-gray-400 mt-4">
-              {mode === 'login' ? (
-                <>No account?{' '}
-                  <button onClick={() => switchMode('register')} className="text-blue-600 hover:underline font-medium">
-                    Register
-                  </button>
-                </>
-              ) : (
-                <>Already have an account?{' '}
-                  <button onClick={() => switchMode('login')} className="text-blue-600 hover:underline font-medium">
-                    Log in
-                  </button>
-                </>
-              )}
-            </p>
+            <div className="text-center mt-4">
+              <a href="#" className="text-blue-600 hover:text-blue-700 text-xs font-medium">Forgot password?</a>
+            </div>
+            
           </div>
         </div>
       </div>
