@@ -2,7 +2,7 @@ package com.coffeecalculator.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+// Removed the import for Positive to allow negative/zero margins
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,7 +34,7 @@ public class RecipeDTO {
 
     private BigDecimal totalCost;
 
-    @Positive(message = "Target margin must be positive")
+    // REMOVED @Positive here to fix the Validation Error
     private BigDecimal targetMarginPercent;
 
     private BigDecimal suggestedSellingPrice;
