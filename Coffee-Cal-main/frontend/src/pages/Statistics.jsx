@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Calculator, Banknote } from 'lucide-react';
+import { BarChart3, TrendingUp, Banknote, Package } from 'lucide-react';
 import { recipeService, ingredientService } from '../services/api';
 
 const Statistics = ({ refreshTrigger }) => {
@@ -56,12 +56,12 @@ const Statistics = ({ refreshTrigger }) => {
           value={ingredientCount}
           color="from-matcha-500 to-matcha-600"
         />
-<MetricCard
-  icon={Banknote}
-  label="Avg Selling Price"
-  value={`₱${stats?.averageSellingPrice?.toFixed(2) || '0.00'}`}
-  color="from-caramel-500 to-caramel-600"
-/>
+        <MetricCard
+          icon={Banknote}
+          label="Avg Selling Price"
+          value={`₱${stats?.averageSellingPrice?.toFixed(2) || '0.00'}`}
+          color="from-caramel-500 to-caramel-600"
+        />
         <MetricCard
           icon={TrendingUp}
           label="Avg Profit Margin"
