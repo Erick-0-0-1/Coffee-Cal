@@ -11,15 +11,16 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Data Transfer Object for Recipe
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class RecipeDTO {
 
     private Long id;
+
+    // Added shopId to link the recipe to a coffee shop
+    @NotNull(message = "Shop ID is required")
+    private Long shopId;
 
     @NotBlank(message = "Drink name is required")
     private String drinkName;
@@ -37,17 +38,14 @@ public class RecipeDTO {
 
     private String notes;
 
-    // Additional computed fields for display
     private String complexityLevel;
     private String pricingCategory;
     
-    // Dashboard fields
     private String title;
     private String primaryIngredient;
     private Double averageRating;
     private java.time.LocalDateTime publishedDate;
     
-    // Additional required fields
     private java.math.BigDecimal allocatedExpensePerItem;
     private java.math.BigDecimal netProfit;
     private java.math.BigDecimal netMarginPercent;
