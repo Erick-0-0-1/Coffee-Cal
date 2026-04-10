@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { BarChart3, TrendingUp, PhilippinePeso, Package } from 'lucide-react';
 import { recipeService, ingredientService } from '../services/api';
 
 const Statistics = ({ refreshTrigger }) => {
