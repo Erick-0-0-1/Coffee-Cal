@@ -259,22 +259,7 @@ const Auth = () => {
 
             <ServerBanner />
 
-            {/* Tab toggle */}
-            <div className="flex rounded-xl bg-gray-100 p-1 mb-5">
-              {['login', 'register'].map(m => (
-                <button
-                  key={m}
-                  onClick={() => switchMode(m)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all capitalize ${
-                    mode === m
-                      ? 'bg-white shadow text-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {m === 'login' ? 'Log in' : 'Register'}
-                </button>
-              ))}
-            </div>
+
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 mb-4 text-sm">
