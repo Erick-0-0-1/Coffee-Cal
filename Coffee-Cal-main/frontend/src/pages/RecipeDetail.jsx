@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calculator, DollarSign } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calculator, PhilippinePeso } from 'lucide-react';
 import { recipeService, ingredientService } from '../services/api';
 
 const RecipeDetail = ({ onUpdate }) => {
@@ -359,7 +359,7 @@ const RecipeDetail = ({ onUpdate }) => {
 
             <div className="bg-gradient-to-br from-coffee-600 to-coffee-800 rounded-lg p-4 border-2 border-coffee-700">
               <div className="flex items-center mb-1">
-                <DollarSign className="w-5 h-5 text-cream-200 mr-1" />
+                <PhilippinePeso className="w-5 h-5 text-cream-200 mr-1" />
                 <p className="text-sm text-cream-200">Suggested Selling Price</p>
               </div>
               <p className="text-3xl font-bold text-white">
