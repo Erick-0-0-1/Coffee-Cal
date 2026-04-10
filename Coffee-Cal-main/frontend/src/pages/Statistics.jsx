@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Calculator, DollarSign, BarChart3, PieChart, Coffee, Target, AlertCircle, CheckCircle2, ArrowRight, PlusCircle, Trash2, Search } from 'lucide-react';
+import { TrendingUp, Calculator, PhilippinePeso, BarChart3, PieChart, Coffee, Target, AlertCircle, CheckCircle2, ArrowRight, PlusCircle, Trash2, Search } from 'lucide-react';
 import api from '../services/api';
 
 export default function Statistics() {
@@ -55,13 +55,11 @@ export default function Statistics() {
   };
 
   // --- PRE-COMPUTATIONS (Base Data) ---
-  // FIX 1: Removed the `> 0` filter so even test recipes with no ingredients (₱0 price) will show up!
   const activeRecipes = recipes; 
   
   // Sort and analyze all recipes
   const sortedRecipes = [...activeRecipes].map(r => {
     const cost = calculateRecipeCost(r.ingredients);
-    // FIX 2: Updated to suggestedSellingPrice and added a fallback to 0
     const price = parseFloat(r.suggestedSellingPrice) || 0; 
     const profit = price - cost;
     const margin = price > 0 ? (profit / price) * 100 : 0;
@@ -102,7 +100,6 @@ export default function Statistics() {
   const removeProjectedSale = (index) => setProjectedSales(projectedSales.filter((_, i) => i !== index));
 
   // --- COST ANALYSIS MATH ---
-  // FIX 3: Updated sellingPrice to suggestedSellingPrice here as well
   const avgSellingPrice = activeRecipes.length > 0 ? (activeRecipes.reduce((sum, r) => sum + (parseFloat(r.suggestedSellingPrice) || 0), 0) / activeRecipes.length) : 0;
   const avgCostPerCup = activeRecipes.length > 0 ? (activeRecipes.reduce((sum, r) => sum + calculateRecipeCost(r.ingredients || []), 0) / activeRecipes.length) : 0;
   const overallAverageMargin = avgSellingPrice > 0 ? (((avgSellingPrice - avgCostPerCup) / avgSellingPrice) * 100) : 0;
@@ -193,7 +190,7 @@ export default function Statistics() {
               <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-[#FAF8F4] dark:bg-[#2C2420] rounded-lg text-[#823A1E] dark:text-[#D4A373]">
-                    <DollarSign className="w-5 h-5" />
+                    <PhilippinePeso className="w-5 h-5" />
                   </div>
                   <h3 className="text-xs font-bold text-[#8C7B70] uppercase tracking-wider">Avg Selling Price</h3>
                 </div>
@@ -467,7 +464,7 @@ export default function Statistics() {
             <div className="md:col-span-5 bg-[#823A1E] dark:bg-[#241E1C] p-6 rounded-xl shadow-lg border border-[#682D16] dark:border-[#423630] text-white flex flex-col justify-between">
                <div>
                   <div className="flex items-center gap-2 mb-8">
-                     <DollarSign className="w-6 h-6 text-[#D4A373]"/>
+                     <PhilippinePeso className="w-6 h-6 text-[#D4A373]"/>
                      <h2 className="text-xl font-bold">Monthly Profit Report</h2>
                   </div>
 
