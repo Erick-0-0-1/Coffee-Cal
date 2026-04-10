@@ -18,7 +18,7 @@ const RecipeDetail = ({ onUpdate }) => {
     ingredients: [],
   });
   
-  // NEW state for the recipe picture
+  // State for the recipe picture
   const [finalRecipeImage, setFinalRecipeImage] = useState(null); // Holds the base64 string
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null); // Holds the data URL for preview
 
@@ -124,12 +124,10 @@ const RecipeDetail = ({ onUpdate }) => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select an image file (jpg, png, etc.)');
         return;
       }
-      // Validate file size (e.g., 2MB limit)
       if (file.size > 2 * 1024 * 1024) {
         alert('File size is too large. Please select an image smaller than 2MB.');
         return;
@@ -137,9 +135,8 @@ const RecipeDetail = ({ onUpdate }) => {
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        // Convert file to base64 string for saving in DB
         setImagePreviewUrl(reader.result);
-        setFinalRecipeImage(reader.result); // Base64 string
+        setFinalRecipeImage(reader.result); 
       };
       reader.readAsDataURL(file);
     }
@@ -172,7 +169,6 @@ const RecipeDetail = ({ onUpdate }) => {
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
-  // --- COMPLETED: Custom PDF Export Function ---
   const handleExportPDF = () => {
     const printWindow = window.open('', '_blank', 'width=800,height=800');
     
@@ -276,18 +272,20 @@ const RecipeDetail = ({ onUpdate }) => {
       setError('');
       setLoading(true);
 
-      // --- FIX: Ensure shopId is passed to the backend ---
-      // IMPORTANT: Update 'shopId' below if your auth stores it under a different key in localStorage (e.g., 'shop_id', 'user')
-      const currentShopId = localStorage.getItem('shopId') || 1; 
+      const currentShopId = parseInt(localStorage.getItem('shopId') || '1', 10);
 
+      // FIX: Multiple variations included to catch whichever mapping your Java backend expects
       const dataToSubmit = {
-        shopId: parseInt(currentShopId), // Added shopId here to satisfy DB constraint
+        shop: { id: currentShopId }, // Often required by Spring Boot @ManyToOne
+        shop_id: currentShopId,      // For snake_case DTOs
+        shopId: currentShopId,       // Standard camelCase
+
         drinkName: formData.drinkName,
         targetMarginPercent: parseFloat(formData.targetMarginPercent) || 40,
         notes: formData.notes,
         // finalImageBase64: finalRecipeImage, // Uncomment when backend supports it
         ingredients: formData.ingredients.map((ing) => ({
-          ingredientId: parseInt(ing.ingredientId), 
+          ingredientId: parseInt(ing.ingredientId, 10), 
           quantity: parseFloat(ing.quantity),
         })),
       };
@@ -319,7 +317,7 @@ const RecipeDetail = ({ onUpdate }) => {
         </div>
       )}
 
-      {/* Header with improved PDF export positioning */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-6 dark:border-coffee-700 print:border-none print:pb-0">
         <div className="flex items-center space-x-4">
           <Link to="/recipes" className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-coffee-800 dark:hover:bg-coffee-700 rounded-full transition-colors print:hidden">
@@ -333,7 +331,6 @@ const RecipeDetail = ({ onUpdate }) => {
           </div>
         </div>
 
-        {/* --- FIXED: PDF Export Button Positioning & Action --- */}
         <button 
           type="button"
           onClick={handleExportPDF} 
@@ -347,12 +344,11 @@ const RecipeDetail = ({ onUpdate }) => {
 
       <form onSubmit={handleSubmit} className="space-y-8 print:space-y-6">
         
-        {/* Basic Info Card with new image upload feature */}
+        {/* Basic Info Card */}
         <div className="bg-white dark:bg-coffee-800 rounded-2xl shadow-sm border border-gray-100 dark:border-coffee-700 p-6 md:p-8">
           <h2 className="text-xl font-bold text-gray-900 dark:text-cream-50 mb-6 border-b pb-4 dark:border-coffee-700">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Drink Name */}
             <div className="md:col-span-2 space-y-2">
               <label className="block text-sm font-semibold text-gray-700 dark:text-coffee-300">Drink Name</label>
               <input
@@ -365,7 +361,6 @@ const RecipeDetail = ({ onUpdate }) => {
               />
             </div>
 
-            {/* Profit Margin */}
             <div className="space-y-2 print:hidden">
               <label className="block text-sm font-semibold text-gray-700 dark:text-coffee-300">Target Profit Margin (%)</label>
               <div className="relative">
@@ -387,7 +382,6 @@ const RecipeDetail = ({ onUpdate }) => {
               </p>
             </div>
 
-            {/* --- NEW FEATURE: Final Recipe Image Upload --- */}
             <div className="space-y-2 md:col-start-2">
               <label className="block text-sm font-semibold text-gray-700 dark:text-coffee-300">Recipe Picture (Optional)</label>
               <div className="flex flex-col items-center gap-4">
@@ -429,7 +423,6 @@ const RecipeDetail = ({ onUpdate }) => {
               </div>
             </div>
 
-            {/* Notes */}
             <div className="md:col-span-2 space-y-2">
               <label className="block text-sm font-semibold text-gray-700 dark:text-coffee-300">Notes (Optional)</label>
               <textarea

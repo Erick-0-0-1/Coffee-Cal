@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PlusCircle, Trash2, TrendingUp, Building2, Wallet, Save, X, Coffee } from 'lucide-react';
+import { PlusCircle, Trash2, TrendingUp, Building2, Wallet, Save, X, Coffee, FileDown, Camera } from 'lucide-react';
 import api from '../services/api';
 import axios from 'axios';
 
@@ -17,9 +17,9 @@ export default function CoffeeCosting() {
     rent: 15000, electricity: 5000, water: 1000, salaries: 12000, internet: 1500, marketing: 2000, misc: 1000
   });
 
-  // New recipe state
+  // New recipe state (added imageBase64)
   const [newRecipe, setNewRecipe] = useState({
-    name: '', sellingPrice: '', ingredients: []
+    name: '', sellingPrice: '', ingredients: [], imageBase64: null
   });
 
   // New ingredient state
@@ -100,6 +100,109 @@ export default function CoffeeCosting() {
 
   // --- ACTIONS ---
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('File size too large. Please select an image under 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewRecipe({ ...newRecipe, imageBase64: reader.result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleExportPDF = (recipe) => {
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
+    const recipeIngredients = recipe.ingredients || [];
+    const cost = calculateRecipeCost(recipeIngredients);
+    const price = parseFloat(recipe.sellingPrice) || 0;
+    const profit = price - cost;
+
+    const ingredientsHtml = recipeIngredients.map(ri => {
+      const idToFind = ri.ingredientId || (ri.ingredient ? ri.ingredient.id : null);
+      const ing = ingredients.find(x => x.id === idToFind);
+      const name = ing ? `${ing.name} (${ing.category})` : 'Unknown Item';
+      
+      return `
+        <tr>
+          <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb;">${name}</td>
+          <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${ri.quantity} ${ing?.baseUnit || ''}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Recipe Export - ${recipe.drinkName || recipe.name || 'Untitled'}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #111827; max-width: 800px; margin: 0 auto; }
+            .header { border-bottom: 3px solid #823A1E; padding-bottom: 24px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+            h1 { color: #823A1E; margin: 0; font-size: 32px; }
+            .recipe-image { max-height: 150px; max-width: 200px; border-radius: 12px; object-fit: contain; }
+            .summary { display: flex; justify-content: space-between; margin-bottom: 40px; background: #f3f4f6; padding: 24px; border-radius: 12px; }
+            .summary-item { text-align: center; flex: 1; }
+            .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em; }
+            .summary-value { font-size: 24px; font-weight: 800; color: #111827; margin-top: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th { background: #823A1E; color: white; padding: 12px 8px; text-align: left; font-size: 14px; text-transform: uppercase; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>${recipe.drinkName || recipe.name || 'Untitled Recipe'}</h1>
+            </div>
+            ${recipe.image ? `<img src="${recipe.image}" class="recipe-image" alt="Recipe Image"/>` : ''}
+          </div>
+          
+          <div class="summary">
+            <div class="summary-item">
+              <div class="summary-label">Total Cost</div>
+              <div class="summary-value">₱${cost.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Suggested Price</div>
+              <div class="summary-value">₱${price.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Gross Profit</div>
+              <div class="summary-value">₱${profit.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <h2>Ingredients</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Ingredient</th>
+                <th style="text-align: right;">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ingredientsHtml || '<tr><td colspan="2" style="text-align: center; color: #6b7280;">No ingredients listed</td></tr>'}
+            </tbody>
+          </table>
+
+          <script>
+            window.onload = () => {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const handleAddIngredient = async () => {
     try {
       if (!newIngredient.name || !newIngredient.packSize || !newIngredient.packPrice) return alert("Please fill all fields.");
@@ -149,6 +252,7 @@ export default function CoffeeCosting() {
       const payload = {
         drinkName: newRecipe.name,
         sellingPrice: parseFloat(newRecipe.sellingPrice),
+        image: newRecipe.imageBase64, // Appending image payload
         ingredients: newRecipe.ingredients.map(ing => ({
           ingredientId: parseInt(ing.ingredientId || ing.id),
           quantity: parseFloat(ing.quantity)
@@ -159,7 +263,7 @@ export default function CoffeeCosting() {
 
       alert("Recipe saved successfully!");
       fetchRecipes();
-      setNewRecipe({ name: '', sellingPrice: '', ingredients: [] });
+      setNewRecipe({ name: '', sellingPrice: '', ingredients: [], imageBase64: null });
       setShowNewRecipe(false);
 
     } catch (error) {
@@ -245,6 +349,23 @@ export default function CoffeeCosting() {
                        <input type="number" placeholder="0.00" value={newRecipe.sellingPrice} onChange={e => setNewRecipe({...newRecipe, sellingPrice: e.target.value})} className="w-full p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] focus:ring-2 focus:ring-[#823A1E] outline-none" />
                      </div>
 
+                     <div>
+                       <label className="block text-sm font-medium text-[#8C7B70] mb-1">Recipe Photo (Optional)</label>
+                       <div className="flex items-center gap-4">
+                         {newRecipe.imageBase64 && (
+                           <img src={newRecipe.imageBase64} alt="Preview" className="w-16 h-16 object-cover rounded-lg border border-[#E6DCC8] dark:border-[#423630]" />
+                         )}
+                         <label className="flex items-center gap-2 px-4 py-2 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg cursor-pointer hover:bg-[#EFEBE4] dark:hover:bg-[#3E3430] transition-colors text-sm text-[#8C7B70]">
+                           <Camera className="w-4 h-4" />
+                           {newRecipe.imageBase64 ? 'Change Photo' : 'Upload Photo'}
+                           <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                         </label>
+                         {newRecipe.imageBase64 && (
+                           <button onClick={() => setNewRecipe({ ...newRecipe, imageBase64: null })} className="text-red-500 hover:text-red-700 text-sm">Remove</button>
+                         )}
+                       </div>
+                     </div>
+
                      <div className="space-y-2 pt-2">
                        <label className="text-sm font-semibold text-[#8C7B70] flex justify-between">
                          <span>Ingredients</span>
@@ -276,7 +397,7 @@ export default function CoffeeCosting() {
 
                              {/* Live Cost Display */}
                              <div className="w-20 text-right text-xs font-mono text-[#8C7B70]">
-                                ₱{lineCost.toFixed(2)}
+                               ₱{lineCost.toFixed(2)}
                              </div>
 
                              <button onClick={() => removeRecipeIngredient(idx)} className="text-[#8C7B70] hover:text-red-500 p-2"><Trash2 className="w-4 h-4"/></button>
@@ -333,15 +454,28 @@ export default function CoffeeCosting() {
                  const margin = price > 0 ? ((profit / price) * 100) : 0;
 
                  return (
-                   <div key={recipe.id} className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630] flex flex-col justify-between hover:shadow-md transition-shadow group">
-                     <div>
+                   <div key={recipe.id} className="bg-white dark:bg-[#241E1C] rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630] flex flex-col justify-between hover:shadow-md transition-shadow group overflow-hidden">
+                     
+                     {/* Image Header if available */}
+                     {recipe.image && (
+                       <div className="h-40 w-full overflow-hidden bg-[#FAF8F4] dark:bg-[#2C2420]">
+                         <img src={recipe.image} alt={recipe.drinkName || recipe.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                       </div>
+                     )}
+
+                     <div className="p-6 pb-0">
                        <div className="flex justify-between items-start mb-4">
                          <h3 className="font-bold text-xl text-[#4A403A] dark:text-[#E6DCC8]">
                            {recipe.drinkName || recipe.name}
                          </h3>
-                         <button onClick={() => handleDeleteRecipe(recipe.id)} className="text-[#E6DCC8] group-hover:text-red-500 transition-colors">
-                           <Trash2 className="w-5 h-5" />
-                         </button>
+                         <div className="flex gap-2">
+                           <button onClick={() => handleExportPDF(recipe)} title="Export PDF" className="text-[#8C7B70] hover:text-[#823A1E] transition-colors">
+                             <FileDown className="w-5 h-5" />
+                           </button>
+                           <button onClick={() => handleDeleteRecipe(recipe.id)} title="Delete" className="text-[#E6DCC8] group-hover:text-red-500 transition-colors">
+                             <Trash2 className="w-5 h-5" />
+                           </button>
+                         </div>
                        </div>
 
                        <div className="space-y-2 mb-6 bg-[#FAF8F4] dark:bg-[#2C2420] p-3 rounded-lg min-h-[80px]">
@@ -359,7 +493,7 @@ export default function CoffeeCosting() {
                        </div>
                      </div>
 
-                     <div className="grid grid-cols-3 gap-2 pt-4 border-t border-[#E6DCC8] dark:border-[#423630]">
+                     <div className="grid grid-cols-3 gap-2 p-6 pt-4 border-t border-[#E6DCC8] dark:border-[#423630]">
                        <div className="text-center">
                          <p className="text-[10px] text-[#8C7B70] uppercase tracking-wide">Cost</p>
                          <p className="font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{cost.toFixed(2)}</p>
@@ -533,35 +667,34 @@ export default function CoffeeCosting() {
                   <h2 className="text-3xl font-bold text-[#4A403A] dark:text-[#E6DCC8] mt-1">₱{businessMetrics.grossRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h2>
                 </div>
 
-                <div className={businessMetrics.netProfit >= 0 ? "bg-[#EFEBE4] dark:bg-[#3E3430] p-6 rounded-xl border border-[#D4A373]" : "bg-red-50 dark:bg-red-900/20 p-6 rounded-xl border border-red-200"}>
-                  <p className={businessMetrics.netProfit >= 0 ? "text-sm font-medium text-[#823A1E] dark:text-[#D4A373]" : "text-sm font-medium text-red-600 dark:text-red-400"}>Net Monthly Profit</p>
-                  <h2 className={businessMetrics.netProfit >= 0 ? "text-3xl font-bold text-[#823A1E] dark:text-[#D4A373] mt-1" : "text-3xl font-bold text-red-700 dark:text-red-300 mt-1"}>
+                <div className={businessMetrics.netProfit >= 0 ? "bg-[#EFEBE4] dark:bg-[#3E3430] p-6 rounded-xl border border-[#D4A373] dark:border-[#823A1E]" : "bg-red-50 dark:bg-red-900/20 p-6 rounded-xl border border-red-200 dark:border-red-800"}>
+                  <p className="text-sm font-medium text-[#8C7B70] dark:text-[#A09080]">Net Monthly Profit</p>
+                  <h2 className={`text-3xl font-bold mt-1 ${businessMetrics.netProfit >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-400'}`}>
                     ₱{businessMetrics.netProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </h2>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-[#241E1C] rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630] overflow-hidden">
-                <div className="p-6 border-b border-[#E6DCC8] dark:border-[#423630]">
-                  <h3 className="font-bold text-[#4A403A] dark:text-[#E6DCC8] flex items-center gap-2"><Building2 className="w-5 h-5 text-[#8C7B70]" /> Financial Breakdown</h3>
-                </div>
-                <div className="p-6 grid grid-cols-2 gap-6">
-                   <div>
-                     <p className="text-sm text-[#8C7B70] mb-1">Avg Cost Per Cup</p>
-                     <p className="text-xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{businessMetrics.avgCostPerCup.toFixed(2)}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm text-[#8C7B70] mb-1">Avg Selling Price</p>
-                     <p className="text-xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{businessMetrics.avgPricePerCup.toFixed(2)}</p>
-                   </div>
-                   <div>
-                     <p className="text-sm text-[#8C7B70] mb-1">Break-Even Point</p>
-                     <p className="text-xl font-bold text-[#D4A373]">{businessMetrics.breakEvenCups} cups/mo</p>
-                   </div>
-                   <div>
-                     <p className="text-sm text-[#8C7B70] mb-1">Total COGS</p>
-                     <p className="text-xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{businessMetrics.totalCOGS.toLocaleString()}</p>
-                   </div>
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl border border-[#E6DCC8] dark:border-[#423630]">
+                <h3 className="font-bold text-xl text-[#4A403A] dark:text-[#E6DCC8] mb-6">Profitability Breakdown</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
+                    <span className="text-[#8C7B70]">Average Cost per Cup</span>
+                    <span className="font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{businessMetrics.avgCostPerCup.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
+                    <span className="text-[#8C7B70]">Average Price per Cup</span>
+                    <span className="font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{businessMetrics.avgPricePerCup.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
+                    <span className="text-[#8C7B70]">Average Profit per Cup</span>
+                    <span className="font-bold text-green-600 dark:text-green-500">₱{businessMetrics.avgProfitPerCup.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
+                    <span className="text-[#8C7B70]">Break-even Point (Cups/Month)</span>
+                    <span className="font-bold text-[#823A1E] dark:text-[#D4A373]">{businessMetrics.breakEvenCups.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
             </div>
