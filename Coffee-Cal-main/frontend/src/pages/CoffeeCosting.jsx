@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { PlusCircle, Trash2, TrendingUp, Building2, Wallet, Save, X, Coffee, FileDown, Camera } from 'lucide-react';
+import { PlusCircle, Trash2, Save, X, Coffee, FileDown, Camera } from 'lucide-react';
 import api from '../services/api';
-import axios from 'axios';
 
 export default function CoffeeCosting() {
   const [activeTab, setActiveTab] = useState('recipes');
@@ -11,13 +10,7 @@ export default function CoffeeCosting() {
   const [showNewIngredient, setShowNewIngredient] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('All');
 
-  // --- BUSINESS ANALYSIS STATE ---
-  const [monthlySales, setMonthlySales] = useState(1000);
-  const [expenses, setExpenses] = useState({
-    rent: 15000, electricity: 5000, water: 1000, salaries: 12000, internet: 1500, marketing: 2000, misc: 1000
-  });
-
-  // New recipe state (added imageBase64)
+  // New recipe state
   const [newRecipe, setNewRecipe] = useState({
     name: '', sellingPrice: '', ingredients: [], imageBase64: null
   });
@@ -30,7 +23,6 @@ export default function CoffeeCosting() {
   useEffect(() => {
     fetchRecipes();
     fetchIngredients();
-    loadExpenses();
   }, []);
 
   const fetchRecipes = async () => {
@@ -39,20 +31,6 @@ export default function CoffeeCosting() {
 
   const fetchIngredients = async () => {
     try { const response = await api.get('/ingredients'); setIngredients(response.data || []); } catch (error) { console.error('Error fetching ingredients:', error); }
-  };
-
-  const loadExpenses = () => {
-    const saved = localStorage.getItem('businessData');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setExpenses(parsed.expenses || expenses);
-      setMonthlySales(parsed.monthlySales || 1000);
-    }
-  };
-
-  const saveBusinessData = () => {
-    localStorage.setItem('businessData', JSON.stringify({ expenses, monthlySales }));
-    alert("Business settings saved!");
   };
 
   // --- CORE MATH LOGIC ---
@@ -70,33 +48,6 @@ export default function CoffeeCosting() {
       return total;
     }, 0);
   };
-
-  const calculateBusinessMetrics = () => {
-    let totalRecipeCosts = 0;
-    let totalSellingPrices = 0;
-
-    recipes.forEach(r => {
-        const cost = calculateRecipeCost(r.ingredients || []);
-        let price = parseFloat(r.sellingPrice) || 0;
-        totalRecipeCosts += cost;
-        totalSellingPrices += price;
-    });
-
-    const avgCostPerCup = recipes.length > 0 ? totalRecipeCosts / recipes.length : 0;
-    const avgPricePerCup = recipes.length > 0 ? totalSellingPrices / recipes.length : 0;
-    const avgProfitPerCup = avgPricePerCup - avgCostPerCup;
-    const totalFixedExpenses = Object.values(expenses).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-
-    const grossRevenue = avgPricePerCup * monthlySales;
-    const totalCOGS = avgCostPerCup * monthlySales;
-    const grossProfit = grossRevenue - totalCOGS;
-    const netProfit = grossProfit - totalFixedExpenses;
-    const breakEvenCups = avgProfitPerCup > 0 ? Math.ceil(totalFixedExpenses / avgProfitPerCup) : 0;
-
-    return { avgCostPerCup, avgPricePerCup, avgProfitPerCup, totalFixedExpenses, grossRevenue, totalCOGS, grossProfit, netProfit, breakEvenCups };
-  };
-
-  const businessMetrics = calculateBusinessMetrics();
 
   // --- ACTIONS ---
 
@@ -252,7 +203,7 @@ export default function CoffeeCosting() {
       const payload = {
         drinkName: newRecipe.name,
         sellingPrice: parseFloat(newRecipe.sellingPrice),
-        image: newRecipe.imageBase64, // Appending image payload
+        image: newRecipe.imageBase64, 
         ingredients: newRecipe.ingredients.map(ing => ({
           ingredientId: parseInt(ing.ingredientId || ing.id),
           quantity: parseFloat(ing.quantity)
@@ -288,7 +239,6 @@ export default function CoffeeCosting() {
   const formProfit = formSellingPrice - formRecipeCost;
 
   return (
-    // MAIN BACKGROUND: Soft warm gray (Cream) or Dark Roast
     <div className="rounded-xl min-h-screen bg-[#FDFBF7] dark:bg-[#1A1412] transition-colors duration-200 font-sans text-[#4A403A] dark:text-[#E6DCC8]">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
 
@@ -302,7 +252,7 @@ export default function CoffeeCosting() {
           </div>
 
           <div className="flex bg-[#EFEBE4] dark:bg-[#2C2420] p-1 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630] mt-4 md:mt-0">
-            {['recipes', 'ingredients', 'business'].map((tab) => (
+            {['recipes', 'ingredients'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -312,7 +262,7 @@ export default function CoffeeCosting() {
                     : 'text-[#8C7B70] dark:text-[#A09080] hover:bg-[#E6DCC8] dark:hover:bg-[#3E3430]'
                 }`}
               >
-                {tab === 'business' ? 'Business Analysis' : tab}
+                {tab}
               </button>
             ))}
           </div>
@@ -579,123 +529,55 @@ export default function CoffeeCosting() {
 
             {/* Ingredient List */}
             <div className="bg-white dark:bg-[#241E1C] rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630] overflow-hidden">
-               <div className="p-4 border-b border-[#E6DCC8] dark:border-[#423630] flex items-center gap-2 overflow-x-auto">
-                 <span className="text-sm text-[#8C7B70] whitespace-nowrap">Filter:</span>
-                 <div className="flex gap-2">
-                    <button onClick={() => setCategoryFilter('All')} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${categoryFilter === 'All' ? 'bg-[#823A1E] text-white' : 'bg-[#FAF8F4] dark:bg-[#2C2420] text-[#8C7B70]'}`}>All</button>
-                    {['Beans','Milk','Syrup','Powder','Sauce','Topping','Packaging'].map(c => (
-                        <button key={c} onClick={() => setCategoryFilter(c)} className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${categoryFilter === c ? 'bg-[#823A1E] text-white' : 'bg-[#FAF8F4] dark:bg-[#2C2420] text-[#8C7B70]'}`}>{c}</button>
-                    ))}
-                 </div>
-               </div>
-
-              <table className="w-full text-left">
-                <thead className="bg-[#FAF8F4] dark:bg-[#2C2420] text-[#8C7B70] text-xs uppercase">
-                  <tr>
-                    <th className="p-4">Name</th>
-                    <th className="p-4">Pack Info</th>
-                    <th className="p-4">Unit Cost (Calculated)</th>
-                    <th className="p-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E6DCC8] dark:divide-[#423630]">
-                  {filteredIngredients.map(ing => (
-                    <tr key={ing.id} className="hover:bg-[#FAF8F4] dark:hover:bg-[#2C2420]">
-                      <td className="p-4 font-medium text-[#4A403A] dark:text-[#E6DCC8]">
-                        {ing.name}
-                        <span className="ml-2 bg-[#E6DCC8] dark:bg-[#3E3430] text-[#6A5A50] dark:text-[#A09080] px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wider">{ing.category}</span>
-                      </td>
-                      <td className="p-4 text-sm text-[#8C7B70]">
-                        ₱{ing.packPrice} / {ing.packSize}{ing.baseUnit}
-                      </td>
-                      <td className="p-4 text-sm font-mono text-[#823A1E] dark:text-[#D4A373]">
-                        ₱{parseFloat(ing.costPerBaseUnit).toFixed(4)} / {ing.baseUnit}
-                      </td>
-                      <td className="p-4 text-right">
-                        <button onClick={() => handleDeleteIngredient(ing.id)} className="text-[#E6DCC8] hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4 inline" /></button>
-                      </td>
+              <div className="p-4 border-b border-[#E6DCC8] dark:border-[#423630] flex gap-2 overflow-x-auto">
+                {['All', 'Beans', 'Milk', 'Syrup', 'Powder', 'Sauce', 'Topping', 'Packaging'].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setCategoryFilter(cat)}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                      categoryFilter === cat
+                        ? 'bg-[#823A1E] text-white'
+                        : 'bg-[#FAF8F4] dark:bg-[#2C2420] text-[#8C7B70] hover:bg-[#E6DCC8] dark:hover:bg-[#3E3430]'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#FAF8F4] dark:bg-[#2C2420] text-[#8C7B70] text-sm border-b border-[#E6DCC8] dark:border-[#423630]">
+                      <th className="p-4 font-medium">Name</th>
+                      <th className="p-4 font-medium">Category</th>
+                      <th className="p-4 font-medium">Pack Size</th>
+                      <th className="p-4 font-medium">Total Price</th>
+                      <th className="p-4 font-medium">Cost / Unit</th>
+                      <th className="p-4 font-medium text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ================= BUSINESS TAB ================= */}
-        {activeTab === 'business' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Settings */}
-            <div className="lg:col-span-1 space-y-6">
-              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-[#EFEBE4] dark:bg-[#3E3430] rounded-lg"><TrendingUp className="w-5 h-5 text-[#823A1E] dark:text-[#D4A373]" /></div>
-                  <h3 className="font-bold text-[#4A403A] dark:text-[#E6DCC8]">Sales Projection</h3>
-                </div>
-                <div>
-                  <label className="block text-sm text-[#8C7B70] mb-2">Estimated Cups Sold / Month</label>
-                  <input type="number" value={monthlySales} onChange={(e) => setMonthlySales(parseFloat(e.target.value) || 0)} className="w-full text-2xl font-bold p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg text-[#823A1E] dark:text-[#D4A373] outline-none" />
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-lg"><Wallet className="w-5 h-5 text-red-600 dark:text-red-400" /></div>
-                  <h3 className="font-bold text-[#4A403A] dark:text-[#E6DCC8]">Fixed Monthly Expenses</h3>
-                </div>
-                <div className="space-y-3">
-                  {Object.keys(expenses).map((key) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <label className="text-sm text-[#8C7B70] capitalize">{key}</label>
-                      <input type="number" value={expenses[key]} onChange={(e) => setExpenses({ ...expenses, [key]: parseFloat(e.target.value) || 0 })} className="w-32 p-2 text-right bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] font-medium outline-none" />
-                    </div>
-                  ))}
-                  <div className="pt-4 border-t border-[#E6DCC8] dark:border-[#423630] flex justify-between font-bold text-[#4A403A] dark:text-[#E6DCC8]">
-                    <span>Total Fixed Cost</span>
-                    <span>₱{businessMetrics.totalFixedExpenses.toLocaleString()}</span>
-                  </div>
-                  <button onClick={saveBusinessData} className="w-full mt-4 bg-[#4A403A] dark:bg-[#3E3430] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#2C2420] transition-colors">Save Settings</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Analysis */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-[#FAF8F4] dark:bg-[#2C2420] p-6 rounded-xl border border-[#E6DCC8] dark:border-[#423630]">
-                  <p className="text-sm font-medium text-[#8C7B70]">Gross Monthly Revenue</p>
-                  <h2 className="text-3xl font-bold text-[#4A403A] dark:text-[#E6DCC8] mt-1">₱{businessMetrics.grossRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h2>
-                </div>
-
-                <div className={businessMetrics.netProfit >= 0 ? "bg-[#EFEBE4] dark:bg-[#3E3430] p-6 rounded-xl border border-[#D4A373] dark:border-[#823A1E]" : "bg-red-50 dark:bg-red-900/20 p-6 rounded-xl border border-red-200 dark:border-red-800"}>
-                  <p className="text-sm font-medium text-[#8C7B70] dark:text-[#A09080]">Net Monthly Profit</p>
-                  <h2 className={`text-3xl font-bold mt-1 ${businessMetrics.netProfit >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-400'}`}>
-                    ₱{businessMetrics.netProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                  </h2>
-                </div>
-              </div>
-
-              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl border border-[#E6DCC8] dark:border-[#423630]">
-                <h3 className="font-bold text-xl text-[#4A403A] dark:text-[#E6DCC8] mb-6">Profitability Breakdown</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
-                    <span className="text-[#8C7B70]">Average Cost per Cup</span>
-                    <span className="font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{businessMetrics.avgCostPerCup.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
-                    <span className="text-[#8C7B70]">Average Price per Cup</span>
-                    <span className="font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{businessMetrics.avgPricePerCup.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
-                    <span className="text-[#8C7B70]">Average Profit per Cup</span>
-                    <span className="font-bold text-green-600 dark:text-green-500">₱{businessMetrics.avgProfitPerCup.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-[#E6DCC8] dark:border-[#423630]">
-                    <span className="text-[#8C7B70]">Break-even Point (Cups/Month)</span>
-                    <span className="font-bold text-[#823A1E] dark:text-[#D4A373]">{businessMetrics.breakEvenCups.toLocaleString()}</span>
-                  </div>
-                </div>
+                  </thead>
+                  <tbody>
+                    {filteredIngredients.map(ing => (
+                      <tr key={ing.id} className="border-b border-[#E6DCC8] dark:border-[#423630] last:border-0 hover:bg-[#FAF8F4] dark:hover:bg-[#2C2420]/50 transition-colors">
+                        <td className="p-4 text-[#4A403A] dark:text-[#E6DCC8] font-medium">{ing.name}</td>
+                        <td className="p-4 text-[#8C7B70] text-sm">{ing.category}</td>
+                        <td className="p-4 text-[#8C7B70] text-sm">{ing.packSize} {ing.baseUnit}</td>
+                        <td className="p-4 text-[#8C7B70] text-sm">₱{parseFloat(ing.packPrice).toFixed(2)}</td>
+                        <td className="p-4 font-mono text-sm text-[#4A403A] dark:text-[#E6DCC8]">₱{parseFloat(ing.costPerBaseUnit).toFixed(4)} / {ing.baseUnit}</td>
+                        <td className="p-4 text-right">
+                          <button onClick={() => handleDeleteIngredient(ing.id)} className="text-[#8C7B70] hover:text-red-500 transition-colors">
+                            <Trash2 className="w-5 h-5 inline" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredIngredients.length === 0 && (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-[#8C7B70]">No ingredients found in this category.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
