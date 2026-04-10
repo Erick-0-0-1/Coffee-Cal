@@ -39,11 +39,12 @@ public class RecipeController {
      * Get a single recipe by ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<RecipeDTO> getRecipeById(@PathVariable Long id) {
+    public ResponseEntity<?> getRecipeById(@PathVariable Long id) {
         try {
             return ResponseEntity.ok(recipeService.getRecipeById(id));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error finding recipe: " + e.getMessage());
         }
     }
 
@@ -51,11 +52,14 @@ public class RecipeController {
      * Create a new recipe
      */
     @PostMapping
-    public ResponseEntity<RecipeDTO> createRecipe(@Valid @RequestBody RecipeDTO recipeDTO) {
+    public ResponseEntity<?> createRecipe(@Valid @RequestBody RecipeDTO recipeDTO) {
         try {
             return ResponseEntity.status(HttpStatus.CREATED).body(recipeService.createRecipe(recipeDTO));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
+            // Prints to Render logs
+            e.printStackTrace(); 
+            // Sends exact error to the Chrome Response tab
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error saving recipe: " + e.getMessage());
         }
     }
 
@@ -63,11 +67,12 @@ public class RecipeController {
      * Update an existing recipe
      */
     @PutMapping("/{id}")
-    public ResponseEntity<RecipeDTO> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
+    public ResponseEntity<?> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
         try {
             return ResponseEntity.ok(recipeService.updateRecipe(id, recipeDTO));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error updating recipe: " + e.getMessage());
         }
     }
 
@@ -75,12 +80,13 @@ public class RecipeController {
      * Delete a recipe
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteRecipe(@PathVariable Long id) {
+    public ResponseEntity<?> deleteRecipe(@PathVariable Long id) {
         try {
             recipeService.deleteRecipe(id);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error deleting recipe: " + e.getMessage());
         }
     }
 
@@ -104,11 +110,12 @@ public class RecipeController {
      * Calculate "What-If" scenario for pricing
      */
     @PostMapping("/{id}/what-if")
-    public ResponseEntity<RecipeDTO> calculateWhatIf(@PathVariable Long id, @RequestParam BigDecimal margin) {
+    public ResponseEntity<?> calculateWhatIf(@PathVariable Long id, @RequestParam BigDecimal margin) {
         try {
             return ResponseEntity.ok(recipeService.calculateWhatIfScenario(id, margin));
         } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error calculating scenario: " + e.getMessage());
         }
     }
 
