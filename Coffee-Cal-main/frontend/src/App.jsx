@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, ProtectedRoute } from './context/AuthContext';
@@ -11,6 +12,16 @@ import Ingredients from './pages/Ingredients';
 import Statistics from './pages/Statistics';
 
 function App() {
+  
+  // 🛠️ DEV HACK: Ensure shopId exists so the API interceptor doesn't fail.
+  // This automatically sets the shop ID to 1 so you can bypass the 400 Bad Request.
+  // You can remove this block later once your login system handles setting it!
+  useEffect(() => {
+    if (!localStorage.getItem('shopId')) {
+      localStorage.setItem('shopId', '1');
+    }
+  }, []);
+
   return (
     <ThemeProvider>
       <Router>
@@ -43,6 +54,5 @@ function App() {
     </ThemeProvider>
   );
 }
-
 
 export default App;
