@@ -5,12 +5,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 30000, // 30s — enough for a warm server; wake-up is handled separately
+  timeout: 30000, // 30s — enough for a warm server
 });
 
 // ─── Server Wake-Up Utility ───────────────────────────────────────────────────
-// Render free tier sleeps after 15 min of inactivity.
-// Call this on page load so the server is warm before the user submits a form.
 let serverReady = false;
 let wakeUpPromise = null;
 
@@ -19,9 +17,9 @@ export const wakeUpServer = () => {
   if (wakeUpPromise) return wakeUpPromise;
 
   wakeUpPromise = axios
-    .get(`${API_BASE_URL}/public/health`, { timeout: 60000 }) // 60s for cold start
+    .get(`${API_BASE_URL}/public/health`, { timeout: 60000 }) 
     .then(() => { serverReady = true; })
-    .catch(() => { serverReady = true; }) // proceed even if health check fails
+    .catch(() => { serverReady = true; }) 
     .finally(() => { wakeUpPromise = null; });
 
   return wakeUpPromise;
@@ -54,11 +52,36 @@ export const recipeService = {
   getStatistics: async () => (await api.get('/recipes/statistics')).data,
 };
 
-// ─── Request Interceptor: attach JWT ─────────────────────────────────────────
+// ─── Request Interceptor: attach JWT & Inject shopId ─────────────────────────
 api.interceptors.request.use(
   (config) => {
+    // 1. Attach JWT Token
     const token = localStorage.getItem('token');
     if (token) config.headers['Authorization'] = `Bearer ${token}`;
+
+    // 2. Inject shopId for POST/PUT requests to prevent 400 Validation Errors
+    const shopId = localStorage.getItem('shopId');
+    if (shopId && (config.method === 'post' || config.method === 'put')) {
+      let body = config.data;
+      
+      // If data is a JSON string, parse it
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body);
+        } catch (e) {
+          console.error("Failed to parse request body", e);
+        }
+      }
+
+      // If data is an object, ensure shopId is present
+      if (typeof body === 'object' && body !== null) {
+        if (!body.shopId) {
+          body.shopId = parseInt(shopId);
+        }
+        config.data = body; 
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -75,17 +98,17 @@ api.interceptors.response.use(
     } else if (!error.response) {
       message = 'Cannot reach the server. Please check your connection.';
     } else {
+      // Extract specific validation messages if available
       message =
-        error.response.data?.error ||
         error.response.data?.message ||
-        error.response.data ||
+        error.response.data?.error ||
         error.message ||
         'An unexpected error occurred.';
     }
 
     if (error.response?.status === 401) {
-      // Token expired — clear auth and redirect
       localStorage.removeItem('token');
+      localStorage.removeItem('shopId');
       delete api.defaults.headers.common['Authorization'];
       if (!window.location.pathname.includes('/auth')) {
         window.location.href = '/auth';
