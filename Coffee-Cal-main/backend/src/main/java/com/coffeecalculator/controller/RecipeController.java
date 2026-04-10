@@ -27,11 +27,17 @@ public class RecipeController {
     private final RecipeRepository recipeRepository;
     private final PdfService pdfService;
 
+    /**
+     * Get all recipes
+     */
     @GetMapping
     public ResponseEntity<List<RecipeDTO>> getAllRecipes() {
         return ResponseEntity.ok(recipeService.getAllRecipes());
     }
 
+    /**
+     * Get a single recipe by ID
+     */
     @GetMapping("/{id}")
     public ResponseEntity<RecipeDTO> getRecipeById(@PathVariable Long id) {
         try {
@@ -41,6 +47,9 @@ public class RecipeController {
         }
     }
 
+    /**
+     * Create a new recipe
+     */
     @PostMapping
     public ResponseEntity<RecipeDTO> createRecipe(@Valid @RequestBody RecipeDTO recipeDTO) {
         try {
@@ -50,6 +59,9 @@ public class RecipeController {
         }
     }
 
+    /**
+     * Update an existing recipe
+     */
     @PutMapping("/{id}")
     public ResponseEntity<RecipeDTO> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
         try {
@@ -59,40 +71,70 @@ public class RecipeController {
         }
     }
 
+    /**
+     * Delete a recipe
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRecipe(@PathVariable Long id) {
-        recipeService.deleteRecipe(id);
-        return ResponseEntity.noContent().build();
+        try {
+            recipeService.deleteRecipe(id);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
+    /**
+     * Search recipes by name
+     */
     @GetMapping("/search")
     public ResponseEntity<List<RecipeDTO>> searchRecipes(@RequestParam String term) {
         return ResponseEntity.ok(recipeService.searchRecipes(term));
     }
 
+    /**
+     * Get recipes within a specific price range
+     */
     @GetMapping("/price-range")
     public ResponseEntity<List<RecipeDTO>> getRecipesByPriceRange(@RequestParam BigDecimal min, @RequestParam BigDecimal max) {
         return ResponseEntity.ok(recipeService.getRecipesByPriceRange(min, max));
     }
 
+    /**
+     * Calculate "What-If" scenario for pricing
+     */
     @PostMapping("/{id}/what-if")
     public ResponseEntity<RecipeDTO> calculateWhatIf(@PathVariable Long id, @RequestParam BigDecimal margin) {
-        return ResponseEntity.ok(recipeService.calculateWhatIfScenario(id, margin));
+        try {
+            return ResponseEntity.ok(recipeService.calculateWhatIfScenario(id, margin));
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
+    /**
+     * Get aggregated recipe statistics
+     */
     @GetMapping("/statistics")
     public ResponseEntity<RecipeStatisticsDTO> getStatistics() {
         return ResponseEntity.ok(recipeService.getRecipeStatistics());
     }
 
-    @PostMapping("/{id}/export-pdf")
+    /**
+     * Export recipe details to PDF
+     */
+    @PostMapping(value = "/{id}/export-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportRecipePdf(@PathVariable Long id, @RequestBody RecipePdfRequest request) {
         return recipeRepository.findById(id)
                 .map(recipe -> {
                     byte[] pdfBytes = pdfService.generateRecipePdf(recipe, request.getSections());
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_PDF);
-                    headers.setContentDispositionFormData("attachment", recipe.getDrinkName().replaceAll("\\s+", "_") + ".pdf");
+                    
+                    // Sanitize drink name for filename
+                    String filename = recipe.getDrinkName().replaceAll("[^a-zA-Z0-9]", "_") + ".pdf";
+                    headers.setContentDispositionFormData("attachment", filename);
+                    
                     return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
                 })
                 .orElse(ResponseEntity.notFound().build());
