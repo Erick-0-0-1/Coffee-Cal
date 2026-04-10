@@ -149,13 +149,10 @@ public class RecipeService {
             ri.setIngredient(ingredient);
             ri.setQuantity(ingDto.getQuantity());
             
-            // --- FIX FOR THE NULL SHOP_ID CONSTRAINT ---
-            // If your RecipeIngredient entity maps directly to a shopId Long:
-            ri.setShopId(dto.getShopId());
-            
-            // Or, if it maps to the CoffeeShop entity object itself via @ManyToOne:
-            // ri.setCoffeeShop(recipe.getCoffeeShop());
-            // -------------------------------------------
+            // --- FIX FOR THE COMPILATION ERROR ---
+            // Set the entity mapping instead of the primitive Long ID
+            ri.setCoffeeShop(recipe.getCoffeeShop());
+            // -------------------------------------
 
             ri.calculateLineCost();
             recipe.getIngredients().add(ri);
