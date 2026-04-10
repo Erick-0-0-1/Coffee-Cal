@@ -18,7 +18,6 @@ public class RecipeDTO {
 
     private Long id;
 
-    // This is the missing field causing the 400 Bad Request
     @NotNull(message = "Shop ID is required")
     private Long shopId;
 
@@ -26,6 +25,12 @@ public class RecipeDTO {
     private String drinkName;
 
     private List<RecipeIngredientDTO> ingredients = new ArrayList<>();
+
+    // Added to match the frontend payload "sellingPrice"
+    private BigDecimal sellingPrice;
+
+    // Added to handle the Base64 image string from the frontend
+    private String image;
 
     private BigDecimal totalCost;
 
