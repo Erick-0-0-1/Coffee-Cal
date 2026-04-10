@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Coffee, Package, BookOpen, TrendingUp, PhilippinePeso, Percent } from 'lucide-react';
+import { Coffee, Package, BookOpen, TrendingUp, Banknote, Percent } from 'lucide-react';
 import { recipeService, ingredientService } from '../services/api';
 
 const Dashboard = ({ refreshTrigger }) => {
@@ -72,9 +72,9 @@ const Dashboard = ({ refreshTrigger }) => {
           delay="animate-delay-200"
         />
         <StatsCard
-          icon={PhilippinePeso}
+          icon={Banknote}
           label="Avg. Selling Price"
-          value={`${stats?.averageSellingPrice?.toFixed(2) || '0.00'}`}
+          value={`₱${stats?.averageSellingPrice?.toFixed(2) || '0.00'}`}
           color="from-purple-500 to-purple-600"
           delay="animate-delay-300"
         />
@@ -179,8 +179,6 @@ const Dashboard = ({ refreshTrigger }) => {
     </div>
   );
 };
-
-
 
 const StatsCard = ({ icon: Icon, label, value, color, delay = '' }) => (
   <div className={`stats-card animate-scale-in ${delay}`}>
