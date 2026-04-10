@@ -1,205 +1,294 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Banknote, Package } from 'lucide-react';
-import { recipeService, ingredientService } from '../services/api';
+import { TrendingUp, Calculator, DollarSign, BarChart3, PieChart, Coffee } from 'lucide-react';
+import api from '../services/api';
 
-const Statistics = ({ refreshTrigger }) => {
-  const [stats, setStats] = useState(null);
-  const [ingredientCount, setIngredientCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+export default function Statistics() {
+  // Top-level View Mode
+  const [viewMode, setViewMode] = useState('business'); // 'business' or 'cost'
+
+  const [recipes, setRecipes] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
+
+  // Business Analysis State
+  const [businessStats, setBusinessStats] = useState({
+    cupsPerDay: 50,
+    daysOpen: 26,
+    rent: 15000,
+    payroll: 20000,
+    utilities: 5000,
+    misc: 2000
+  });
 
   useEffect(() => {
-    fetchStatistics();
-  }, [refreshTrigger]);
+    fetchRecipes();
+    fetchIngredients();
+  }, []);
 
-  const fetchStatistics = async () => {
-    try {
-      setLoading(true);
-      const [statsData, ingredientsData] = await Promise.all([
-        recipeService.getStatistics(),
-        ingredientService.getAll(),
-      ]);
-      setStats(statsData);
-      setIngredientCount(ingredientsData.length);
-    } catch (error) {
-      console.error('Error fetching statistics:', error);
-    } finally {
-      setLoading(false);
-    }
+  const fetchRecipes = async () => {
+    try { const response = await api.get('/recipes'); setRecipes(response.data || []); } catch (error) { console.error('Error fetching recipes:', error); }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <BarChart3 className="w-16 h-16 text-coffee-600 dark:text-coffee-400 animate-pulse" />
-      </div>
-    );
-  }
+  const fetchIngredients = async () => {
+    try { const response = await api.get('/ingredients'); setIngredients(response.data || []); } catch (error) { console.error('Error fetching ingredients:', error); }
+  };
+
+  // --- CORE MATH LOGIC ---
+  const calculateRecipeCost = (recipeIngredients) => {
+    if (!recipeIngredients || recipeIngredients.length === 0) return 0;
+    return recipeIngredients.reduce((total, ri) => {
+      const idToFind = ri.ingredientId || (ri.ingredient ? ri.ingredient.id : null);
+      const ingredient = ingredients.find((ing) => ing.id == idToFind);
+      if (ingredient && ingredient.costPerBaseUnit) {
+        return total + (parseFloat(ingredient.costPerBaseUnit) * parseFloat(ri.quantity || 0));
+      }
+      return total;
+    }, 0);
+  };
+
+  const updateBusinessStat = (field, value) => {
+    setBusinessStats(prev => ({ ...prev, [field]: parseFloat(value) || 0 }));
+  };
+
+  // --- COMPUTATIONS ---
+  const activeRecipes = recipes.filter(r => parseFloat(r.sellingPrice) > 0);
+  const avgSellingPrice = activeRecipes.length > 0 ? (activeRecipes.reduce((sum, r) => sum + parseFloat(r.sellingPrice || 0), 0) / activeRecipes.length) : 0;
+  const avgCostPerCup = activeRecipes.length > 0 ? (activeRecipes.reduce((sum, r) => sum + calculateRecipeCost(r.ingredients || []), 0) / activeRecipes.length) : 0;
+  
+  // Business Math
+  const monthlyCupsSold = businessStats.cupsPerDay * businessStats.daysOpen;
+  const projectedRevenue = monthlyCupsSold * avgSellingPrice;
+  const projectedCOGS = monthlyCupsSold * avgCostPerCup; 
+  const grossProfit = projectedRevenue - projectedCOGS;
+  const totalFixedExpenses = businessStats.rent + businessStats.payroll + businessStats.utilities + businessStats.misc;
+  const netProfit = grossProfit - totalFixedExpenses;
+  const businessMargin = projectedRevenue > 0 ? ((netProfit / projectedRevenue) * 100) : 0;
+
+  // Cost Analysis Math
+  const overallAverageMargin = avgSellingPrice > 0 ? (((avgSellingPrice - avgCostPerCup) / avgSellingPrice) * 100) : 0;
+
+  // Find most/least profitable recipes
+  const sortedRecipes = [...activeRecipes].map(r => {
+    const cost = calculateRecipeCost(r.ingredients);
+    const price = parseFloat(r.sellingPrice);
+    const profit = price - cost;
+    const margin = price > 0 ? (profit / price) * 100 : 0;
+    return { ...r, cost, price, profit, margin };
+  }).sort((a, b) => b.margin - a.margin);
+
+  const highestMarginRecipe = sortedRecipes[0];
+  const lowestMarginRecipe = sortedRecipes[sortedRecipes.length - 1];
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-coffee-900 dark:text-cream-50 mb-2">Business Analytics</h1>
-        <p className="text-coffee-600 dark:text-coffee-300">Overview of your coffee business performance</p>
-      </div>
+    <div className="rounded-xl min-h-screen bg-[#FDFBF7] dark:bg-[#1A1412] transition-colors duration-200 font-sans text-[#4A403A] dark:text-[#E6DCC8]">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          icon={BarChart3}
-          label="Total Recipes"
-          value={stats?.totalRecipes || 0}
-          color="from-coffee-500 to-coffee-600"
-        />
-        <MetricCard
-          icon={Package}
-          label="Total Ingredients"
-          value={ingredientCount}
-          color="from-matcha-500 to-matcha-600"
-        />
-        <MetricCard
-          icon={Banknote}
-          label="Avg Selling Price"
-          value={`₱${stats?.averageSellingPrice?.toFixed(2) || '0.00'}`}
-          color="from-caramel-500 to-caramel-600"
-        />
-        <MetricCard
-          icon={TrendingUp}
-          label="Avg Profit Margin"
-          value={`${stats?.averageMargin?.toFixed(1) || '0.0'}%`}
-          color="from-coffee-700 to-coffee-800"
-        />
-      </div>
-
-      {/* Complexity Breakdown */}
-      {stats && (
-        <div className="card dark:bg-coffee-800 dark:border-coffee-700">
-          <h2 className="text-2xl font-bold text-coffee-900 dark:text-cream-50 mb-6">Recipe Complexity Analysis</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <ComplexityBar
-              label="Simple"
-              count={stats.simpleRecipes}
-              total={stats.totalRecipes}
-              color="bg-matcha-500"
-            />
-            <ComplexityBar
-              label="Moderate"
-              count={stats.moderateRecipes}
-              total={stats.totalRecipes}
-              color="bg-caramel-500"
-            />
-            <ComplexityBar
-              label="Complex"
-              count={stats.complexRecipes}
-              total={stats.totalRecipes}
-              color="bg-coffee-500"
-            />
-            <ComplexityBar
-              label="Very Complex"
-              count={stats.veryComplexRecipes}
-              total={stats.totalRecipes}
-              color="bg-red-900"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Cost Analysis */}
-      <div className="card dark:bg-coffee-800 dark:border-coffee-700">
-        <h2 className="text-2xl font-bold text-coffee-900 dark:text-cream-50 mb-6">Cost Analysis</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-coffee-900 dark:to-coffee-950 rounded-xl p-6 border-2 border-blue-200 dark:border-coffee-700">
-            <p className="text-sm font-medium text-blue-700 dark:text-coffee-400 mb-2">Average Cost per Recipe</p>
-            <p className="text-3xl font-bold text-blue-900 dark:text-cream-100">
-              ₱{stats?.averageCost?.toFixed(2) || '0.00'}
+        {/* --- TOP HEADER & GLOBAL VIEW TOGGLE --- */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-8 border-b border-[#E6DCC8] dark:border-[#423630] pb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-[#823A1E] dark:text-[#D4A373] flex items-center gap-2">
+              <BarChart3 className="w-8 h-8"/> Statistics & Reports
+            </h1>
+            <p className="text-[#8C7B70] dark:text-[#A09080] mt-1">
+              {viewMode === 'business' ? 'Monthly Revenue & Expense Projections' : 'Menu Profitability & Cost Breakdown'}
             </p>
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-matcha-600/20 dark:to-matcha-600/10 rounded-xl p-6 border-2 border-green-200 dark:border-matcha-500/50">
-            <p className="text-sm font-medium text-green-700 dark:text-matcha-400 mb-2">Average Selling Price</p>
-            <p className="text-3xl font-bold text-green-900 dark:text-matcha-500">
-              ₱{stats?.averageSellingPrice?.toFixed(2) || '0.00'}
-            </p>
-          </div>
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-caramel-600/20 dark:to-caramel-600/10 rounded-xl p-6 border-2 border-purple-200 dark:border-caramel-500/50">
-            <p className="text-sm font-medium text-purple-700 dark:text-caramel-400 mb-2">Average Profit per Sale</p>
-            <p className="text-3xl font-bold text-purple-900 dark:text-caramel-500">
-              ₱{((stats?.averageSellingPrice || 0) - (stats?.averageCost || 0)).toFixed(2)}
-            </p>
-          </div>
-        </div>
-      </div>
 
-      {/* Insights */}
-      <div className="card bg-gradient-to-br from-coffee-50 to-cream-50 dark:from-coffee-800 dark:to-coffee-900 dark:border-coffee-700">
-        <h2 className="text-2xl font-bold text-coffee-900 dark:text-cream-50 mb-4">Business Insights</h2>
-        <div className="space-y-3">
-          <InsightRow
-            label="Portfolio Size"
-            value={`${stats?.totalRecipes || 0} active recipes`}
-            isGood={stats?.totalRecipes > 5}
-          />
-          <InsightRow
-            label="Average Margin"
-            value={`${stats?.averageMargin?.toFixed(1) || '0.0'}%`}
-            isGood={stats?.averageMargin >= 40}
-          />
-          <InsightRow
-            label="Ingredient Library"
-            value={`${ingredientCount} ingredients tracked`}
-            isGood={ingredientCount > 10}
-          />
-          <InsightRow
-            label="Recipe Diversity"
-            value={`${((stats?.complexRecipes + stats?.veryComplexRecipes) / (stats?.totalRecipes || 1) * 100 || 0).toFixed(0)}% complex recipes`}
-            isGood={stats?.complexRecipes + stats?.veryComplexRecipes > 0}
-          />
+          <div className="flex bg-[#EFEBE4] dark:bg-[#2C2420] p-1 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630] mt-4 md:mt-0">
+            <button
+              onClick={() => setViewMode('business')}
+              className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                viewMode === 'business'
+                  ? 'bg-[#823A1E] text-white shadow-md'
+                  : 'text-[#8C7B70] dark:text-[#A09080] hover:bg-[#E6DCC8] dark:hover:bg-[#3E3430]'
+              }`}
+            >
+              Business Analysis
+            </button>
+            <button
+              onClick={() => setViewMode('cost')}
+              className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                viewMode === 'cost'
+                  ? 'bg-[#823A1E] text-white shadow-md'
+                  : 'text-[#8C7B70] dark:text-[#A09080] hover:bg-[#E6DCC8] dark:hover:bg-[#3E3430]'
+              }`}
+            >
+              Cost Analysis
+            </button>
+          </div>
         </div>
+
+        {/* ================= BUSINESS ANALYSIS MODE ================= */}
+        {viewMode === 'business' && (
+          <div className="grid md:grid-cols-12 gap-6">
+            
+            {/* Left Column: Data Input */}
+            <div className="md:col-span-7 space-y-6">
+              
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
+                <div className="flex items-center gap-2 mb-6">
+                   <TrendingUp className="w-6 h-6 text-[#823A1E] dark:text-[#D4A373]"/>
+                   <h2 className="text-xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">Sales Projections</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#8C7B70] mb-1">Expected Cups Sold / Day</label>
+                    <input type="number" value={businessStats.cupsPerDay} onChange={e => updateBusinessStat('cupsPerDay', e.target.value)} className="w-full p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] focus:ring-2 focus:ring-[#823A1E] outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#8C7B70] mb-1">Operating Days / Month</label>
+                    <input type="number" value={businessStats.daysOpen} onChange={e => updateBusinessStat('daysOpen', e.target.value)} className="w-full p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] focus:ring-2 focus:ring-[#823A1E] outline-none" />
+                  </div>
+                </div>
+                <div className="mt-4 p-4 bg-[#FAF8F4] dark:bg-[#2C2420] rounded-lg border border-[#E6DCC8] dark:border-[#423630] flex justify-between text-sm">
+                   <span className="text-[#8C7B70]">Auto-calculated Avg Cup Price</span>
+                   <span className="font-mono font-medium text-[#4A403A] dark:text-[#E6DCC8]">₱{avgSellingPrice.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
+                <div className="flex items-center gap-2 mb-6">
+                   <Calculator className="w-6 h-6 text-[#823A1E] dark:text-[#D4A373]"/>
+                   <h2 className="text-xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">Monthly Fixed Expenses (₱)</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#8C7B70] mb-1">Rent</label>
+                    <input type="number" value={businessStats.rent} onChange={e => updateBusinessStat('rent', e.target.value)} className="w-full p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] focus:ring-2 focus:ring-[#823A1E] outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#8C7B70] mb-1">Payroll / Salaries</label>
+                    <input type="number" value={businessStats.payroll} onChange={e => updateBusinessStat('payroll', e.target.value)} className="w-full p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] focus:ring-2 focus:ring-[#823A1E] outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#8C7B70] mb-1">Utilities (Water/Electric)</label>
+                    <input type="number" value={businessStats.utilities} onChange={e => updateBusinessStat('utilities', e.target.value)} className="w-full p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] focus:ring-2 focus:ring-[#823A1E] outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[#8C7B70] mb-1">Miscellaneous</label>
+                    <input type="number" value={businessStats.misc} onChange={e => updateBusinessStat('misc', e.target.value)} className="w-full p-3 bg-[#FAF8F4] dark:bg-[#2C2420] border border-[#E6DCC8] dark:border-[#423630] rounded-lg dark:text-[#E6DCC8] focus:ring-2 focus:ring-[#823A1E] outline-none" />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Column: Dashboard Panel */}
+            <div className="md:col-span-5 bg-[#823A1E] dark:bg-[#241E1C] p-6 rounded-xl shadow-lg border border-[#682D16] dark:border-[#423630] text-white flex flex-col justify-between">
+               <div>
+                  <div className="flex items-center gap-2 mb-8">
+                     <DollarSign className="w-6 h-6 text-[#D4A373]"/>
+                     <h2 className="text-xl font-bold">Monthly Profit Report</h2>
+                  </div>
+
+                  <div className="space-y-4">
+                     <div className="flex justify-between border-b border-white/20 pb-2">
+                        <span className="text-white/80 text-sm">Estimated Total Revenue</span>
+                        <span className="font-mono font-medium">₱{projectedRevenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                     </div>
+                     <div className="flex justify-between border-b border-white/20 pb-2">
+                        <span className="text-white/80 text-sm">Ingredient Cost (COGS)</span>
+                        <span className="font-mono font-medium text-red-300">- ₱{projectedCOGS.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                     </div>
+                     <div className="flex justify-between border-b border-white/20 pb-2">
+                        <span className="text-white/80 text-sm">Gross Profit</span>
+                        <span className="font-mono font-medium text-green-300">₱{grossProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                     </div>
+                     <div className="flex justify-between border-b border-white/20 pb-2">
+                        <span className="text-white/80 text-sm">Total Fixed Expenses</span>
+                        <span className="font-mono font-medium text-red-300">- ₱{totalFixedExpenses.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                     </div>
+                  </div>
+               </div>
+
+               <div className="mt-8 bg-white/10 p-4 rounded-xl border border-white/20 backdrop-blur-sm">
+                  <p className="text-xs text-white/70 uppercase tracking-widest font-semibold mb-1">Estimated Net Profit</p>
+                  <p className={`text-4xl font-bold font-mono ${netProfit >= 0 ? 'text-[#D4A373]' : 'text-red-400'}`}>
+                     ₱{netProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                  </p>
+                  <div className="flex justify-between items-center mt-2 text-sm text-white/80">
+                     <span>Net Margin</span>
+                     <span>{businessMargin.toFixed(1)}%</span>
+                  </div>
+               </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* ================= COST ANALYSIS MODE ================= */}
+        {viewMode === 'cost' && (
+          <div className="space-y-6">
+            
+            {/* Top Stat Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-[#FAF8F4] dark:bg-[#2C2420] rounded-lg text-[#823A1E] dark:text-[#D4A373]">
+                    <PieChart className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-[#8C7B70] uppercase tracking-wider">Avg Menu Margin</h3>
+                </div>
+                <p className="text-3xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">{overallAverageMargin.toFixed(1)}%</p>
+              </div>
+
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-[#FAF8F4] dark:bg-[#2C2420] rounded-lg text-[#823A1E] dark:text-[#D4A373]">
+                    <Coffee className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-[#8C7B70] uppercase tracking-wider">Avg Cost Per Cup</h3>
+                </div>
+                <p className="text-3xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{avgCostPerCup.toFixed(2)}</p>
+              </div>
+
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-[#FAF8F4] dark:bg-[#2C2420] rounded-lg text-[#823A1E] dark:text-[#D4A373]">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-[#8C7B70] uppercase tracking-wider">Avg Selling Price</h3>
+                </div>
+                <p className="text-3xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">₱{avgSellingPrice.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Profitability Rankings */}
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
+                <h3 className="font-bold text-[#823A1E] dark:text-[#D4A373] mb-4">Highest Margin Drink</h3>
+                {highestMarginRecipe ? (
+                  <div>
+                    <p className="text-2xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">{highestMarginRecipe.drinkName || highestMarginRecipe.name}</p>
+                    <div className="flex justify-between mt-4 text-sm text-[#8C7B70]">
+                      <span>Margin: <strong className="text-green-600">{highestMarginRecipe.margin.toFixed(1)}%</strong></span>
+                      <span>Cost: ₱{highestMarginRecipe.cost.toFixed(2)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[#8C7B70] text-sm">No active recipes found.</p>
+                )}
+              </div>
+
+              <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
+                <h3 className="font-bold text-[#823A1E] dark:text-[#D4A373] mb-4">Lowest Margin Drink</h3>
+                {lowestMarginRecipe ? (
+                  <div>
+                    <p className="text-2xl font-bold text-[#4A403A] dark:text-[#E6DCC8]">{lowestMarginRecipe.drinkName || lowestMarginRecipe.name}</p>
+                    <div className="flex justify-between mt-4 text-sm text-[#8C7B70]">
+                      <span>Margin: <strong className="text-red-500">{lowestMarginRecipe.margin.toFixed(1)}%</strong></span>
+                      <span>Cost: ₱{lowestMarginRecipe.cost.toFixed(2)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[#8C7B70] text-sm">No active recipes found.</p>
+                )}
+              </div>
+            </div>
+
+          </div>
+        )}
+
       </div>
     </div>
   );
-};
-
-const MetricCard = ({ icon: Icon, label, value, color }) => (
-  <div className="stats-card animate-scale-in dark:bg-coffee-800 dark:border dark:border-coffee-700">
-    <div className={`bg-gradient-to-br ${color} p-3 rounded-xl mb-4 w-fit`}>
-      <Icon className="w-6 h-6 text-white" />
-    </div>
-    <p className="text-sm font-medium text-coffee-600 dark:text-coffee-300 mb-1">{label}</p>
-    <p className="text-3xl font-bold text-coffee-900 dark:text-cream-50">{value}</p>
-  </div>
-);
-
-const ComplexityBar = ({ label, count, total, color }) => {
-  const percentage = total > 0 ? (count / total) * 100 : 0;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-coffee-800 dark:text-cream-100">{label}</span>
-        <span className="text-coffee-600 dark:text-coffee-300">{count}</span>
-      </div>
-      <div className="h-3 bg-coffee-100 dark:bg-coffee-900 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color} rounded-full transition-all duration-500`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <p className="text-xs text-coffee-600 dark:text-coffee-400 text-right">{percentage.toFixed(0)}%</p>
-    </div>
-  );
-};
-
-const InsightRow = ({ label, value, isGood }) => (
-  <div className="flex items-center justify-between p-3 bg-white dark:bg-coffee-950 rounded-lg dark:border dark:border-coffee-800">
-    <span className="font-medium text-coffee-800 dark:text-cream-100">{label}</span>
-    <div className="flex items-center space-x-2">
-      <span className="text-coffee-900 dark:text-cream-50">{value}</span>
-      <div
-        className={`w-3 h-3 rounded-full ${
-          isGood ? 'bg-matcha-500' : 'bg-caramel-500'
-        }`}
-      />
-    </div>
-  </div>
-);
-
-export default Statistics;
+}
