@@ -172,6 +172,96 @@ const RecipeDetail = ({ onUpdate }) => {
     setFormData({ ...formData, ingredients: newIngredients });
   };
 
+  // --- COMPLETED: Custom PDF Export Function ---
+  const handleExportPDF = () => {
+    const printWindow = window.open('', '_blank', 'width=800,height=800');
+    
+    const ingredientsHtml = formData.ingredients && formData.ingredients.length > 0
+      ? formData.ingredients.map(recipeIng => {
+          const ingredient = ingredients.find((i) => i.id === parseInt(recipeIng.ingredientId));
+          const name = ingredient ? `${ingredient.name} (${ingredient.category})` : 'Unknown Ingredient';
+          const unit = ingredient ? ingredient.baseUnit : '';
+          const qty = recipeIng.quantity || '0';
+          
+          return `
+            <tr>
+              <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb;">${name}</td>
+              <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${qty} ${unit}</td>
+            </tr>
+          `;
+        }).join('')
+      : '<tr><td colspan="2" style="padding: 12px 8px; text-align: center; color: #6b7280;">No ingredients listed</td></tr>';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Recipe Export - ${formData.drinkName || 'Untitled Recipe'}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #111827; max-width: 800px; margin: 0 auto; }
+            .header { border-bottom: 3px solid #422006; padding-bottom: 24px; margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end; }
+            h1 { color: #422006; margin: 0; font-size: 32px; }
+            .recipe-image { max-height: 150px; max-width: 200px; border-radius: 12px; object-fit: contain; }
+            .summary { display: flex; justify-content: space-between; margin-bottom: 40px; background: #f3f4f6; padding: 24px; border-radius: 12px; }
+            .summary-item { text-align: center; flex: 1; }
+            .summary-label { font-size: 12px; color: #6b7280; text-transform: uppercase; font-weight: bold; letter-spacing: 0.05em; }
+            .summary-value { font-size: 24px; font-weight: 800; color: #111827; margin-top: 8px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th { background: #422006; color: white; padding: 12px 8px; text-align: left; font-size: 14px; text-transform: uppercase; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>${formData.drinkName || 'Untitled Recipe'}</h1>
+              <p style="color: #6b7280; margin-top: 8px;">${formData.notes || 'No notes provided'}</p>
+            </div>
+            ${imagePreviewUrl ? `<img src="${imagePreviewUrl}" class="recipe-image" alt="Recipe Image"/>` : ''}
+          </div>
+          
+          <div class="summary">
+            <div class="summary-item">
+              <div class="summary-label">Total Cost</div>
+              <div class="summary-value">₱${calculatedData.totalCost.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Suggested Price</div>
+              <div class="summary-value">₱${calculatedData.suggestedSellingPrice.toFixed(2)}</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-label">Gross Profit</div>
+              <div class="summary-value">₱${calculatedData.grossProfit.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <h2>Ingredients</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Ingredient</th>
+                <th style="text-align: right;">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ingredientsHtml}
+            </tbody>
+          </table>
+
+          <script>
+            // Automatically trigger the print dialog once the window loads
+            window.onload = () => {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -185,13 +275,19 @@ const RecipeDetail = ({ onUpdate }) => {
     try {
       setError('');
       setLoading(true);
+
+      // --- FIX: Ensure shopId is passed to the backend ---
+      // IMPORTANT: Update 'shopId' below if your auth stores it under a different key in localStorage (e.g., 'shop_id', 'user')
+      const currentShopId = localStorage.getItem('shopId') || 1; 
+
       const dataToSubmit = {
+        shopId: parseInt(currentShopId), // Added shopId here to satisfy DB constraint
         drinkName: formData.drinkName,
         targetMarginPercent: parseFloat(formData.targetMarginPercent) || 40,
         notes: formData.notes,
-        // finalImageBase64: finalRecipeImage, // <-- COMMENTED OUT to fix 400 Error. Uncomment when backend supports it.
+        // finalImageBase64: finalRecipeImage, // Uncomment when backend supports it
         ingredients: formData.ingredients.map((ing) => ({
-          ingredientId: parseInt(ing.ingredientId), // Ensure backend expects Int, if it expects string, remove parseInt()
+          ingredientId: parseInt(ing.ingredientId), 
           quantity: parseFloat(ing.quantity),
         })),
       };
@@ -237,10 +333,10 @@ const RecipeDetail = ({ onUpdate }) => {
           </div>
         </div>
 
-        {/* --- FIXED: PDF Export Button Positioning --- */}
+        {/* --- FIXED: PDF Export Button Positioning & Action --- */}
         <button 
           type="button"
-          onClick={() => window.print()} 
+          onClick={handleExportPDF} 
           className="flex items-center justify-center space-x-2.5 bg-white hover:bg-gray-50 dark:bg-coffee-800 dark:hover:bg-coffee-700 text-gray-700 dark:text-cream-50 px-6 py-3 rounded-xl border border-gray-300 dark:border-coffee-600 shadow-sm transition-all active:scale-95 print:hidden shrink-0"
           title="Save as PDF for your records"
         >
@@ -434,7 +530,7 @@ const RecipeDetail = ({ onUpdate }) => {
           )}
         </div>
 
-        {/* Cost Calculation Summary - fixed visual bugs */}
+        {/* Cost Calculation Summary */}
         <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-coffee-800 dark:to-coffee-900 rounded-2xl shadow-sm border border-gray-200 dark:border-coffee-700 p-6 md:p-8 print:bg-none print:border-none print:p-0">
           <div className="flex items-center mb-6 print:hidden">
             <Calculator className="w-6 h-6 text-gray-700 dark:text-caramel-400 mr-3 print:hidden" />
@@ -463,7 +559,6 @@ const RecipeDetail = ({ onUpdate }) => {
               </p>
             </div>
 
-            {/* --- FIXED VISUAL BUG: Correct currency symbol on card --- */}
             <div className="bg-[#422006] dark:bg-coffee-900 rounded-xl p-5 shadow-lg border border-[#78350f] dark:border-coffee-700 flex flex-col justify-center print:border-gray-300 print:bg-transparent print:text-black">
               <div className="flex items-center mb-1">
                 <Banknote className="w-5 h-5 text-orange-200 mr-2 print:text-gray-800" />
@@ -476,7 +571,7 @@ const RecipeDetail = ({ onUpdate }) => {
           </div>
         </div>
 
-        {/* Action Buttons - improved styling */}
+        {/* Action Buttons */}
         <div className="flex flex-col md:flex-row gap-4 pt-6 border-t border-gray-200 dark:border-coffee-800 print:hidden">
           <button 
             type="submit" 
