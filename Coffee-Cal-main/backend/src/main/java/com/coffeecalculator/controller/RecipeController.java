@@ -2,10 +2,11 @@ package com.coffeecalculator.controller;
 
 import com.coffeecalculator.dto.RecipeDTO;
 import com.coffeecalculator.dto.RecipePdfRequest;
-import com.coffeecalculator.model.Recipe;
 import com.coffeecalculator.repository.RecipeRepository;
 import com.coffeecalculator.service.PdfService;
 import com.coffeecalculator.service.RecipeService;
+// IMPORTANT: Import the inner class specifically
+import com.coffeecalculator.service.RecipeService.RecipeStatisticsDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -17,10 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 
-/**
- * REST Controller for Recipe operations
- * Provides RESTful API endpoints for managing recipes
- */
 @RestController
 @RequestMapping("/api/recipes")
 @RequiredArgsConstructor
@@ -31,31 +28,20 @@ public class RecipeController {
     private final RecipeRepository recipeRepository;
     private final PdfService pdfService;
 
-    /**
-     * GET /api/recipes - Get all recipes
-     */
     @GetMapping
     public ResponseEntity<List<RecipeDTO>> getAllRecipes() {
-        List<RecipeDTO> recipes = recipeService.getAllRecipes();
-        return ResponseEntity.ok(recipes);
+        return ResponseEntity.ok(recipeService.getAllRecipes());
     }
 
-    /**
-     * GET /api/recipes/{id} - Get recipe by ID
-     */
     @GetMapping("/{id}")
     public ResponseEntity<RecipeDTO> getRecipeById(@PathVariable Long id) {
         try {
-            RecipeDTO recipe = recipeService.getRecipeById(id);
-            return ResponseEntity.ok(recipe);
+            return ResponseEntity.ok(recipeService.getRecipeById(id));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
     }
 
-    /**
-     * POST /api/recipes - Create new recipe
-     */
     @PostMapping
     public ResponseEntity<RecipeDTO> createRecipe(@Valid @RequestBody RecipeDTO recipeDTO) {
         try {
@@ -66,99 +52,52 @@ public class RecipeController {
         }
     }
 
-    /**
-     * PUT /api/recipes/{id} - Update recipe
-     */
     @PutMapping("/{id}")
-    public ResponseEntity<RecipeDTO> updateRecipe(
-            @PathVariable Long id,
-            @Valid @RequestBody RecipeDTO recipeDTO) {
+    public ResponseEntity<RecipeDTO> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
         try {
-            RecipeDTO updated = recipeService.updateRecipe(id, recipeDTO);
-            return ResponseEntity.ok(updated);
+            return ResponseEntity.ok(recipeService.updateRecipe(id, recipeDTO));
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         }
     }
 
-    /**
-     * DELETE /api/recipes/{id} - Delete recipe
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRecipe(@PathVariable Long id) {
-        try {
-            recipeService.deleteRecipe(id);
-            return ResponseEntity.noContent().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        recipeService.deleteRecipe(id);
+        return ResponseEntity.noContent().build();
     }
 
-    /**
-     * GET /api/recipes/search?term={searchTerm} - Search recipes
-     */
     @GetMapping("/search")
     public ResponseEntity<List<RecipeDTO>> searchRecipes(@RequestParam String term) {
-        List<RecipeDTO> results = recipeService.searchRecipes(term);
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(recipeService.searchRecipes(term));
     }
 
-    /**
-     * GET /api/recipes/price-range?min={min}&max={max} - Get recipes by price range
-     */
     @GetMapping("/price-range")
-    public ResponseEntity<List<RecipeDTO>> getRecipesByPriceRange(
-            @RequestParam BigDecimal min,
-            @RequestParam BigDecimal max) {
-        try {
-            List<RecipeDTO> recipes = recipeService.getRecipesByPriceRange(min, max);
-            return ResponseEntity.ok(recipes);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<List<RecipeDTO>> getRecipesByPriceRange(@RequestParam BigDecimal min, @RequestParam BigDecimal max) {
+        return ResponseEntity.ok(recipeService.getRecipesByPriceRange(min, max));
     }
 
-    /**
-     * POST /api/recipes/{id}/what-if?margin={margin} - Calculate what-if scenario
-     */
     @PostMapping("/{id}/what-if")
-    public ResponseEntity<RecipeDTO> calculateWhatIf(
-            @PathVariable Long id,
-            @RequestParam BigDecimal margin) {
-        try {
-            RecipeDTO whatIf = recipeService.calculateWhatIfScenario(id, margin);
-            return ResponseEntity.ok(whatIf);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<RecipeDTO> calculateWhatIf(@PathVariable Long id, @RequestParam BigDecimal margin) {
+        return ResponseEntity.ok(recipeService.calculateWhatIfScenario(id, margin));
     }
 
     /**
-     * GET /api/recipes/statistics - Get recipe statistics
+     * Updated to use the correct DTO reference
      */
     @GetMapping("/statistics")
-    public ResponseEntity<RecipeService.RecipeStatisticsDTO> getStatistics() {
-        RecipeService.RecipeStatisticsDTO stats = recipeService.getRecipeStatistics();
-        return ResponseEntity.ok(stats);
+    public ResponseEntity<RecipeStatisticsDTO> getStatistics() {
+        return ResponseEntity.ok(recipeService.getRecipeStatistics());
     }
 
-    /**
-     * POST /api/recipes/{id}/export-pdf - Export recipe to PDF with selected sections
-     */
     @PostMapping("/{id}/export-pdf")
-    public ResponseEntity<byte[]> exportRecipePdf(
-            @PathVariable Long id,
-            @RequestBody RecipePdfRequest request) {
-        
+    public ResponseEntity<byte[]> exportRecipePdf(@PathVariable Long id, @RequestBody RecipePdfRequest request) {
         return recipeRepository.findById(id)
                 .map(recipe -> {
                     byte[] pdfBytes = pdfService.generateRecipePdf(recipe, request.getSections());
-                    
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_PDF);
-                    headers.setContentDispositionFormData("attachment", 
-                            recipe.getDrinkName().replaceAll("\\s+", "_") + ".pdf");
-                    
+                    headers.setContentDispositionFormData("attachment", recipe.getDrinkName().replaceAll("\\s+", "_") + ".pdf");
                     return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
                 })
                 .orElse(ResponseEntity.notFound().build());
