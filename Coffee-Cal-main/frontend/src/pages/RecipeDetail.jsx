@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calculator, Banknote } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calculator, Banknote, FileDown } from 'lucide-react';
 import { recipeService, ingredientService } from '../services/api';
 
 const RecipeDetail = ({ onUpdate }) => {
@@ -178,16 +178,29 @@ const RecipeDetail = ({ onUpdate }) => {
       )}
 
       {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Link to="/recipes" className="p-2 hover:bg-coffee-100 dark:hover:bg-coffee-800 rounded-lg transition-colors">
-          <ArrowLeft className="w-6 h-6 text-coffee-700 dark:text-cream-200" />
-        </Link>
-        <div>
-          <h1 className="text-4xl font-bold text-coffee-900 dark:text-cream-50">
-            {isNew ? 'Create New Recipe' : 'Edit Recipe'}
-          </h1>
-          <p className="text-coffee-600 dark:text-coffee-300 mt-1">Configure ingredients and pricing</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center space-x-4">
+          <Link to="/recipes" className="p-2 hover:bg-coffee-100 dark:hover:bg-coffee-800 rounded-lg transition-colors">
+            <ArrowLeft className="w-6 h-6 text-coffee-700 dark:text-cream-200" />
+          </Link>
+          <div>
+            <h1 className="text-4xl font-bold text-coffee-900 dark:text-cream-50">
+              {isNew ? 'Create New Recipe' : 'Edit Recipe'}
+            </h1>
+            <p className="text-coffee-600 dark:text-coffee-300 mt-1">Configure ingredients and pricing</p>
+          </div>
         </div>
+
+        {/* PDF Export Button */}
+        <button 
+          type="button"
+          onClick={() => window.print()} 
+          className="flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 dark:bg-coffee-800 dark:hover:bg-coffee-700 text-gray-700 dark:text-cream-50 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-coffee-600 shadow-sm transition-all active:scale-95 print:hidden shrink-0"
+          title="Save as PDF"
+        >
+          <FileDown className="w-5 h-5 text-red-500 dark:text-red-400" />
+          <span className="font-bold sm:inline">Export PDF</span>
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
