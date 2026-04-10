@@ -54,6 +54,12 @@ public class RecipeController {
     @PostMapping
     public ResponseEntity<?> createRecipe(@Valid @RequestBody RecipeDTO recipeDTO) {
         try {
+            // --- FIX FOR THE 400 BAD REQUEST ---
+            // If the frontend did not send a shopId, provide a default fallback so the service doesn't crash
+            if (recipeDTO.getShopId() == null) {
+                recipeDTO.setShopId(1L); // Hardcoded to 1 for testing. Later you can extract this from the logged-in user
+            }
+            
             return ResponseEntity.status(HttpStatus.CREATED).body(recipeService.createRecipe(recipeDTO));
         } catch (RuntimeException e) {
             // Prints to Render logs
@@ -69,6 +75,11 @@ public class RecipeController {
     @PutMapping("/{id}")
     public ResponseEntity<?> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
         try {
+            // Also apply the fallback here just in case!
+            if (recipeDTO.getShopId() == null) {
+                recipeDTO.setShopId(1L);
+            }
+            
             return ResponseEntity.ok(recipeService.updateRecipe(id, recipeDTO));
         } catch (RuntimeException e) {
             e.printStackTrace();

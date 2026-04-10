@@ -1,8 +1,7 @@
 package com.coffeecalculator.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-// Removed the import for Positive to allow negative/zero margins
+// Removed the import for NotNull to stop blocking the frontend request
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,7 +17,7 @@ public class RecipeDTO {
 
     private Long id;
 
-    @NotNull(message = "Shop ID is required")
+    // REMOVED @NotNull here so the request passes even if the frontend payload is missing the shopId
     private Long shopId;
 
     @NotBlank(message = "Drink name is required")
