@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, Calculator, PhilippinePeso, BarChart3, PieChart, Coffee, Target, AlertCircle, CheckCircle2, ArrowRight, PlusCircle, Trash2, Search } from 'lucide-react';
+import { TrendingUp, Calculator, Peso, BarChart3, PieChart, Coffee, Target, AlertCircle, CheckCircle2, ArrowRight, PlusCircle, Trash2, Search } from 'lucide-react';
 import api from '../services/api';
 
 export default function Statistics() {
@@ -152,7 +152,6 @@ export default function Statistics() {
         {viewMode === 'cost' && (
           <div className="space-y-6">
             
-            {/* Top Stat Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
                 <div className="flex items-center gap-3 mb-2">
@@ -190,7 +189,7 @@ export default function Statistics() {
               <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-[#FAF8F4] dark:bg-[#2C2420] rounded-lg text-[#823A1E] dark:text-[#D4A373]">
-                    <PhilippinePeso className="w-5 h-5" />
+                    <Peso className="w-5 h-5" />
                   </div>
                   <h3 className="text-xs font-bold text-[#8C7B70] uppercase tracking-wider">Avg Selling Price</h3>
                 </div>
@@ -198,7 +197,7 @@ export default function Statistics() {
               </div>
             </div>
 
-            {/* RECIPE DEEP DIVE (NEW) */}
+            {/* RECIPE DEEP DIVE */}
             <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div className="flex items-center gap-2">
@@ -219,7 +218,6 @@ export default function Statistics() {
 
               {selectedRecipeData ? (
                 <div className="grid md:grid-cols-2 gap-8">
-                  {/* Ingredient Breakdown */}
                   <div className="bg-[#FAF8F4] dark:bg-[#2C2420]/50 p-4 rounded-xl border border-[#E6DCC8] dark:border-[#423630]">
                     <h3 className="text-sm font-bold text-[#8C7B70] uppercase tracking-wider mb-4 border-b border-[#E6DCC8] dark:border-[#423630] pb-2">Ingredient Cost Breakdown</h3>
                     <div className="space-y-3">
@@ -244,7 +242,6 @@ export default function Statistics() {
                     </div>
                   </div>
 
-                  {/* Profitability Snapshot */}
                   <div className="flex flex-col justify-center space-y-6">
                      <div className="grid grid-cols-2 gap-4">
                         <div className="bg-[#FAF8F4] dark:bg-[#2C2420] p-4 rounded-lg border border-[#E6DCC8] dark:border-[#423630] text-center">
@@ -277,7 +274,7 @@ export default function Statistics() {
               )}
             </div>
 
-            {/* Menu Engineering & Profitability Matrix */}
+            {/* Menu Engineering Matrix */}
             <div className="bg-white dark:bg-[#241E1C] rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630] overflow-hidden">
               <div className="p-6 border-b border-[#E6DCC8] dark:border-[#423630] bg-[#FAF8F4] dark:bg-[#2C2420] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -359,14 +356,10 @@ export default function Statistics() {
           </div>
         )}
 
-        {/* ================= BUSINESS ANALYSIS MODE (ENHANCED) ================= */}
+        {/* ================= BUSINESS ANALYSIS MODE ================= */}
         {viewMode === 'business' && (
           <div className="grid md:grid-cols-12 gap-6">
-            
-            {/* Left Column: Data Input */}
             <div className="md:col-span-7 space-y-6">
-              
-              {/* Sales Mix Builder */}
               <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
                 <div className="flex justify-between items-center mb-6">
                    <div className="flex items-center gap-2">
@@ -385,14 +378,12 @@ export default function Statistics() {
                 </div>
 
                 <div className="space-y-3">
-                  {/* Table Header */}
                   <div className="grid grid-cols-12 gap-2 px-2 text-xs font-bold text-[#8C7B70] uppercase tracking-wider">
                      <div className="col-span-7">Select Drink</div>
                      <div className="col-span-4 text-center">Expected Cups / Day</div>
                      <div className="col-span-1"></div>
                   </div>
 
-                  {/* Projected Items List */}
                   {projectedSales.map((sale, idx) => (
                     <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-[#FAF8F4] dark:bg-[#2C2420]/50 p-2 rounded-lg border border-[#E6DCC8] dark:border-[#423630]">
                       <div className="col-span-7">
@@ -432,7 +423,6 @@ export default function Statistics() {
                 </div>
               </div>
 
-              {/* Fixed Expenses */}
               <div className="bg-white dark:bg-[#241E1C] p-6 rounded-xl shadow-sm border border-[#E6DCC8] dark:border-[#423630]">
                 <div className="flex items-center gap-2 mb-6">
                    <Calculator className="w-6 h-6 text-[#823A1E] dark:text-[#D4A373]"/>
@@ -457,14 +447,12 @@ export default function Statistics() {
                   </div>
                 </div>
               </div>
-
             </div>
 
-            {/* Right Column: Dashboard Panel */}
             <div className="md:col-span-5 bg-[#823A1E] dark:bg-[#241E1C] p-6 rounded-xl shadow-lg border border-[#682D16] dark:border-[#423630] text-white flex flex-col justify-between">
                <div>
                   <div className="flex items-center gap-2 mb-8">
-                     <PhilippinePeso className="w-6 h-6 text-[#D4A373]"/>
+                     <Peso className="w-6 h-6 text-[#D4A373]"/>
                      <h2 className="text-xl font-bold">Monthly Profit Report</h2>
                   </div>
 
@@ -504,10 +492,8 @@ export default function Statistics() {
                   </div>
                </div>
             </div>
-
           </div>
         )}
-
       </div>
     </div>
   );
