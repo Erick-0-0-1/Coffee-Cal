@@ -11,9 +11,7 @@ import java.util.List;
 @Repository
 public interface OperatingExpenseRepository extends JpaRepository<OperatingExpenses, Long> {
 
-    // ==============================================
-    // MULTI-TENANCY FILTERS
-    // ==============================================
+
 
     List<OperatingExpenses> findByCoffeeShopId(Long shopId);
 
@@ -27,9 +25,7 @@ public interface OperatingExpenseRepository extends JpaRepository<OperatingExpen
     @Query("SELECT DISTINCT e.category FROM OperatingExpenses e WHERE e.coffeeShop.id = :shopId ORDER BY e.category")
     List<String> findAllDistinctCategoriesByCoffeeShopId(Long shopId);
 
-    // ==============================================
-    // LEGACY METHODS
-    // ==============================================
+
     @Deprecated
     List<OperatingExpenses> findByCategory(String category);
     @Deprecated

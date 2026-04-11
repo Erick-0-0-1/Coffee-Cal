@@ -10,9 +10,7 @@ import java.util.Optional;
 @Repository
 public interface BusinessSettingsRepository extends JpaRepository<BusinessSettings, Long> {
 
-    /**
-     * Get the current business settings (should only be one record)
-     */
+   
     @Query("SELECT bs FROM BusinessSettings bs ORDER BY bs.id DESC")
     Optional<BusinessSettings> findLatestSettings();
 }

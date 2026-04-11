@@ -7,16 +7,11 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-/**
- * Repository for Ingredient entity
- * Provides database operations for ingredients
- */
+
 @Repository
 public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
 
-    // ==============================================
-    // MULTI-TENANCY FILTERS
-    // ==============================================
+ 
 
     List<Ingredient> findByCoffeeShopId(Long shopId);
 
@@ -34,9 +29,7 @@ public interface IngredientRepository extends JpaRepository<Ingredient, Long> {
     @Query("SELECT DISTINCT i.category FROM Ingredient i WHERE i.coffeeShop.id = :shopId ORDER BY i.category")
     List<String> findAllDistinctCategoriesByCoffeeShopId(Long shopId);
 
-    // ==============================================
-    // LEGACY METHODS (for backward compatibility)
-    // ==============================================
+
     @Deprecated
     List<Ingredient> findByCategory(String category);
     @Deprecated

@@ -12,11 +12,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
-/**
- * Operating Expense Entity - Represents monthly business expenses
- * Examples: Rent, Electricity, Gas, Water, Salaries, etc.
- * Demonstrates: Variables, Conditional Logic, Switch Expressions
- */
+
 @Entity
 @Table(name = "operating_expenses")
 @Getter
@@ -28,7 +24,7 @@ public class OperatingExpenses {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Multi-Tenancy: Each operating expense belongs to one coffee shop
+  
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", nullable = false)
     private CoffeeShop coffeeShop;
@@ -39,15 +35,15 @@ public class OperatingExpenses {
 
     @NotBlank(message = "Category is required")
     @Column(nullable = false)
-    private String category; // Rent, Utilities, Labor, Marketing, Equipment, Others
+    private String category; 
 
     @NotNull(message = "Monthly amount is required")
     @Positive(message = "Amount must be positive")
     @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal monthlyAmount; // Monthly cost in PHP
+    private BigDecimal monthlyAmount; 
 
     @Column(name = "is_fixed", nullable = false)
-    private boolean isFixed = true; // Fixed (rent) vs Variable (electricity)
+    private boolean isFixed = true; 
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -69,10 +65,7 @@ public class OperatingExpenses {
         updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Get expense category display name
-     * Demonstrates: MODERN SWITCH EXPRESSION (Java 14+)
-     */
+  
     @Transient
     public String getCategoryDisplayName() {
         if (this.category == null) return "Unknown";
@@ -91,10 +84,7 @@ public class OperatingExpenses {
         };
     }
 
-    /**
-     * Validate if category is valid
-     * Demonstrates: MODERN SWITCH EXPRESSION, BOOLEAN RETURN
-     */
+  
     @Transient
     public boolean isValidCategory() {
         if (this.category == null) return false;
@@ -106,10 +96,6 @@ public class OperatingExpenses {
         };
     }
 
-    /**
-     * Calculate daily expense allocation
-     * Demonstrates: MATHEMATICAL OPERATIONS
-     */
     @Transient
     public BigDecimal getDailyAmount() {
         if (monthlyAmount == null) return BigDecimal.ZERO;
@@ -117,10 +103,7 @@ public class OperatingExpenses {
         return monthlyAmount.divide(new BigDecimal("30"), 2, RoundingMode.HALF_UP);
     }
 
-    /**
-     * Get expense type description
-     * Demonstrates: CONDITIONAL LOGIC (Ternary Operator)
-     */
+  
     @Transient
     public String getExpenseType() {
         return isFixed ? "Fixed Expense" : "Variable Expense";

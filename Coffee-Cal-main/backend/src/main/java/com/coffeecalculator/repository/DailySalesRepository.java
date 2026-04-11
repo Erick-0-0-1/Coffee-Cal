@@ -13,10 +13,7 @@ import java.util.List;
 @Repository
 public interface DailySalesRepository extends JpaRepository<DailySales, Long> {
 
-    /**
-     * Aggregates total revenue and cost by date for last 30 days for specific shop
-     * Returns DTO with saleDate, totalRevenue, totalCost
-     */
+   
     @Query("SELECT new com.coffeecalculator.dto.DailyRevenueCostDTO(" +
            "    ds.saleDate, " +
            "    SUM(ds.actualSellingPrice * ds.quantitySold), " +

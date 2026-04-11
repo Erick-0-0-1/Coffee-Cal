@@ -10,10 +10,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Business Settings - Stores business configuration for expense allocation
- * Demonstrates: Variables, Conditional Logic
- */
+
 @Entity
 @Table(name = "business_settings")
 @Data
@@ -28,19 +25,15 @@ public class BusinessSettings {
     @NotNull(message = "Expected monthly sales is required")
     @Positive(message = "Expected monthly sales must be positive")
     @Column(nullable = false)
-    private Integer expectedMonthlySales; // Expected number of drinks sold per month
-
+    private Integer expectedMonthlySales; 
     @NotNull(message = "Working days per month is required")
     @Positive(message = "Working days must be positive")
     @Column(nullable = false)
-    private Integer workingDaysPerMonth = 26; // Typical working days (excluding Sundays/holidays)
-
+    private Integer workingDaysPerMonth = 26; 
     @Column(nullable = false)
-    private BigDecimal totalMonthlyExpenses = BigDecimal.ZERO; // Calculated from expenses
-
+    private BigDecimal totalMonthlyExpenses = BigDecimal.ZERO; 
     @Column(nullable = false)
-    private BigDecimal expensePerItem = BigDecimal.ZERO; // Expense allocation per drink
-
+    private BigDecimal expensePerItem = BigDecimal.ZERO;
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -58,16 +51,13 @@ public class BusinessSettings {
         updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Calculate expense allocation per item
-     * Demonstrates: CONDITIONAL LOGIC, MATHEMATICAL OPERATIONS
-     */
+ 
     public void calculateExpensePerItem() {
-        // CONDITIONAL: Check if we have valid sales expectation
+       
         if (expectedMonthlySales != null && expectedMonthlySales > 0 &&
                 totalMonthlyExpenses != null) {
 
-            // Calculate: Expense per item = Total Monthly Expenses / Expected Monthly Sales
+           
             this.expensePerItem = totalMonthlyExpenses.divide(
                     new BigDecimal(expectedMonthlySales),
                     4,
@@ -78,10 +68,7 @@ public class BusinessSettings {
         }
     }
 
-    /**
-     * Get daily expense
-     * Demonstrates: MATHEMATICAL OPERATIONS
-     */
+    
     public BigDecimal getDailyExpense() {
         if (workingDaysPerMonth > 0) {
             return totalMonthlyExpenses.divide(
@@ -93,10 +80,7 @@ public class BusinessSettings {
         return BigDecimal.ZERO;
     }
 
-    /**
-     * Get expected daily sales
-     * Demonstrates: MATHEMATICAL OPERATIONS
-     */
+   
     public Integer getExpectedDailySales() {
         if (workingDaysPerMonth > 0) {
             return expectedMonthlySales / workingDaysPerMonth;
@@ -104,12 +88,9 @@ public class BusinessSettings {
         return 0;
     }
 
-    /**
-     * Calculate break-even units needed
-     * Demonstrates: CONDITIONAL LOGIC
-     */
+    
     public Integer getBreakEvenUnits(BigDecimal averageNetProfitPerItem) {
-        // CONDITIONAL: Prevent division by zero
+       
         if (averageNetProfitPerItem != null &&
                 averageNetProfitPerItem.compareTo(BigDecimal.ZERO) > 0) {
 

@@ -34,9 +34,9 @@ public class CoffeeShop {
 
     private String currency;
 
-    // POS Integration configuration
+  
     @Column(name = "pos_provider")
-    private String posProvider; // MOCK_SQUARE, SQUARE, CLOVER, etc.
+    private String posProvider;
 
     @Column(name = "pos_api_key")
     private String posApiKey;

@@ -59,7 +59,7 @@ public class DailySales {
         createdAt = LocalDateTime.now();
     }
 
-    // Calculated convenience methods
+    
     public BigDecimal getTotalRevenue() {
         return actualSellingPrice.multiply(new BigDecimal(quantitySold));
     }

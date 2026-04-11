@@ -26,7 +26,6 @@ public class Recipe {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Multi-Tenancy: Each recipe belongs to one coffee shop
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", nullable = false)
     private CoffeeShop coffeeShop;
@@ -56,15 +55,14 @@ public class Recipe {
     @Column(length = 1000)
     private String notes;
 
-    // POS Integration: External ID mapping
     @Column(name = "pos_item_id")
     private String posItemId;
 
-    // Community Market: Publication status
+
     @Column(name = "is_published_to_community", nullable = false)
     private boolean publishedToCommunity = false;
 
-    // Community Market: Original creator attribution
+    
     @Column(name = "original_creator_name")
     private String originalCreatorName;
 
@@ -79,10 +77,6 @@ public class Recipe {
         updatedAt = LocalDateTime.now();
     }
 
-    // ==============================================
-    // LIVE PRICING - All calculated on demand
-    // No stale data stored in database
-    // ==============================================
 
     @Transient
     public BigDecimal getTotalCost() {
@@ -159,10 +153,7 @@ public class Recipe {
                 : totalCostWithOverhead;
     }
 
-    // ==============================================
-    // Utility Methods
-    // ==============================================
-
+  
     public void addIngredient(RecipeIngredient recipeIngredient) {
         if (recipeIngredient != null && recipeIngredient.getIngredient() != null) {
             ingredients.add(recipeIngredient);
