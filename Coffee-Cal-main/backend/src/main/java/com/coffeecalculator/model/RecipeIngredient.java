@@ -12,10 +12,7 @@ import lombok.ToString;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-/**
- * RecipeIngredient - Junction table for Recipe and Ingredient
- * Live pricing implementation - cost calculated on demand from current ingredient prices
- */
+
 @Entity
 @Table(name = "recipe_ingredients")
 @Getter
@@ -27,7 +24,7 @@ public class RecipeIngredient {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Multi-Tenancy: Each recipe ingredient belongs to one coffee shop
+  
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", nullable = false)
     private CoffeeShop coffeeShop;
@@ -47,10 +44,6 @@ public class RecipeIngredient {
     @Column(nullable = false, precision = 10, scale = 4) // Precision for fine measurements
     private BigDecimal quantity; // Quantity in base unit (g, ml, pc)
 
-    /**
-     * LIVE PRICING: Calculated on demand using current ingredient price
-     * Not persisted to database - always returns up-to-date cost
-     */
     @Transient
     public BigDecimal getLineCost() {
         if (ingredient != null && ingredient.getCostPerBaseUnit() != null && quantity != null) {
@@ -61,9 +54,7 @@ public class RecipeIngredient {
         return BigDecimal.ZERO;
     }
 
-    /**
-     * Get formatted quantity with proper unit and clean formatting
-     */
+  
     public String getFormattedQuantity() {
         if (ingredient != null && ingredient.getBaseUnit() != null) {
             return quantity.stripTrailingZeros().toPlainString() + " " + ingredient.getBaseUnit();
