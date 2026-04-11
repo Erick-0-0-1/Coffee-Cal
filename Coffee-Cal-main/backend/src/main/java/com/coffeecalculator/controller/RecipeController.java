@@ -62,8 +62,15 @@ public class RecipeController {
             
             return ResponseEntity.status(HttpStatus.CREATED).body(recipeService.createRecipe(recipeDTO));
         } catch (RuntimeException e) {
-            // Prints to Render logs
-@@ -69,80 +75,85 @@
+            // Re-added the missing closing logic that was cut off!
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error creating recipe: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update a recipe
+     */
     @PutMapping("/{id}")
     public ResponseEntity<?> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
         try {
@@ -149,3 +156,4 @@ public class RecipeController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+}
