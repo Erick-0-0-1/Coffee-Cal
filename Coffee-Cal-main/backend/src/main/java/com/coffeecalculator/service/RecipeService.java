@@ -99,7 +99,6 @@ public class RecipeService {
         Recipe recipe = recipeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Recipe not found"));
         
-        // Temporarily update margin to see the impact on Suggested Price
         recipe.setTargetMarginPercent(margin);
         recipe.calculateCosts();
         
@@ -124,7 +123,7 @@ public class RecipeService {
         BigDecimal sumMargin = BigDecimal.ZERO;
 
         for (Recipe r : recipes) {
-            r.calculateCosts(); // Ensure fresh numbers
+            r.calculateCosts();
             sumCost = sumCost.add(r.getTotalCost() != null ? r.getTotalCost() : BigDecimal.ZERO);
             sumPrice = sumPrice.add(r.getSuggestedSellingPrice() != null ? r.getSuggestedSellingPrice() : BigDecimal.ZERO);
             sumMargin = sumMargin.add(r.getActualMarginPercent() != null ? r.getActualMarginPercent() : BigDecimal.ZERO);
@@ -148,11 +147,7 @@ public class RecipeService {
             ri.setRecipe(recipe);
             ri.setIngredient(ingredient);
             ri.setQuantity(ingDto.getQuantity());
-            
-            // --- FIX FOR THE COMPILATION ERROR ---
-            // Set the entity mapping instead of the primitive Long ID
             ri.setCoffeeShop(recipe.getCoffeeShop());
-            // -------------------------------------
 
             ri.calculateLineCost();
             recipe.getIngredients().add(ri);
@@ -177,9 +172,14 @@ public class RecipeService {
             List<RecipeIngredientDTO> ingredientDTOs = recipe.getIngredients().stream().map(ri -> {
                 RecipeIngredientDTO riDTO = new RecipeIngredientDTO();
                 riDTO.setIngredientId(ri.getIngredient().getId());
-                riDTO.setIngredientName(ri.getIngredient().getName());
+                
+                // Matches the new DTO field name
+                riDTO.setIngredientName(ri.getIngredient().getName()); 
                 riDTO.setQuantity(ri.getQuantity());
-                riDTO.setLineCost(ri.getLineCost());
+                
+                // BigDecimal matches on both sides now
+                riDTO.setLineCost(ri.getLineCost()); 
+                
                 return riDTO;
             }).collect(Collectors.toList());
             dto.setIngredients(ingredientDTOs);

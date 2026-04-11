@@ -1,8 +1,9 @@
 package com.coffeecalculator.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
@@ -10,11 +11,16 @@ import lombok.AllArgsConstructor;
 public class RecipeIngredientDTO {
     private Long id;
     private Long ingredientId;
-    private String name;
+    
+    // Matched to Service: riDTO.setIngredientName(...)
+    private String ingredientName; 
+    
     private Double quantity;
     private String unit;
-    private Double cost;
     
-    // This field was missing, which caused the "cannot find symbol" error
-    private Long shopId; 
+    // Matched to Service: riDTO.setLineCost(...)
+    // BigDecimal type fixes the "incompatible types" error
+    private BigDecimal lineCost; 
+    
+    private Long shopId;
 }
