@@ -139,12 +139,9 @@ public class Ingredient {
         }
     }
 
-    /**
-     * Get cost for specific quantity
-     * Demonstrates: Variable operations, mathematical calculations
-     */
+   
     public BigDecimal getCostForQuantity(BigDecimal quantity) {
-        // Variable operations
+       
         if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
             return BigDecimal.ZERO;
         }
