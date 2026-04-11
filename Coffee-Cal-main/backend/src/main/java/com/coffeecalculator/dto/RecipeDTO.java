@@ -1,6 +1,8 @@
 package com.coffeecalculator.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+// Removed the import for Positive to allow negative/zero margins
 // Removed the import for NotNull to stop blocking the frontend request
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,6 +19,7 @@ public class RecipeDTO {
 
     private Long id;
 
+    @NotNull(message = "Shop ID is required")
     // REMOVED @NotNull here so the request passes even if the frontend payload is missing the shopId
     private Long shopId;
 
@@ -43,13 +46,13 @@ public class RecipeDTO {
     private String notes;
     private String complexityLevel;
     private String pricingCategory;
-    
+
     // Dashboard and Calculation fields
     private String title;
     private String primaryIngredient;
     private Double averageRating;
     private java.time.LocalDateTime publishedDate;
-    
+
     private java.math.BigDecimal allocatedExpensePerItem;
     private java.math.BigDecimal netProfit;
     private java.math.BigDecimal netMarginPercent;

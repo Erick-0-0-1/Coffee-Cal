@@ -27,11 +27,17 @@ public class RecipeController {
     private final RecipeRepository recipeRepository;
     private final PdfService pdfService;
 
+    /**
+     * Get all recipes
+     */
     @GetMapping
     public ResponseEntity<List<RecipeDTO>> getAllRecipes() {
         return ResponseEntity.ok(recipeService.getAllRecipes());
     }
 
+    /**
+     * Get a single recipe by ID
+     */
     @GetMapping("/{id}")
     public ResponseEntity<?> getRecipeById(@PathVariable Long id) {
         try {
@@ -42,44 +48,28 @@ public class RecipeController {
         }
     }
 
+    /**
+     * Create a new recipe
+     */
     @PostMapping
     public ResponseEntity<?> createRecipe(@Valid @RequestBody RecipeDTO recipeDTO) {
         try {
-            // FIX: Set Shop ID for the parent recipe
+            // --- FIX FOR THE 400 BAD REQUEST ---
+            // If the frontend did not send a shopId, provide a default fallback so the service doesn't crash
             if (recipeDTO.getShopId() == null) {
-                recipeDTO.setShopId(1L); 
-            }
-            
-            // FIX: Set Shop ID for every ingredient attached to this recipe
-            if (recipeDTO.getIngredients() != null) {
-                recipeDTO.getIngredients().forEach(ingredient -> {
-                    if (ingredient.getShopId() == null) {
-                        ingredient.setShopId(1L);
-                    }
-                });
+                recipeDTO.setShopId(1L); // Hardcoded to 1 for testing. Later you can extract this from the logged-in user
             }
             
             return ResponseEntity.status(HttpStatus.CREATED).body(recipeService.createRecipe(recipeDTO));
         } catch (RuntimeException e) {
-            e.printStackTrace(); 
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error saving recipe: " + e.getMessage());
-        }
-    }
-
+            // Prints to Render logs
+@@ -69,80 +75,85 @@
     @PutMapping("/{id}")
     public ResponseEntity<?> updateRecipe(@PathVariable Long id, @Valid @RequestBody RecipeDTO recipeDTO) {
         try {
-            // Apply the same fallback here
+            // Also apply the fallback here just in case!
             if (recipeDTO.getShopId() == null) {
                 recipeDTO.setShopId(1L);
-            }
-            
-            if (recipeDTO.getIngredients() != null) {
-                recipeDTO.getIngredients().forEach(ingredient -> {
-                    if (ingredient.getShopId() == null) {
-                        ingredient.setShopId(1L);
-                    }
-                });
             }
             
             return ResponseEntity.ok(recipeService.updateRecipe(id, recipeDTO));
@@ -89,6 +79,9 @@ public class RecipeController {
         }
     }
 
+    /**
+     * Delete a recipe
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteRecipe(@PathVariable Long id) {
         try {
@@ -100,16 +93,25 @@ public class RecipeController {
         }
     }
 
+    /**
+     * Search recipes by name
+     */
     @GetMapping("/search")
     public ResponseEntity<List<RecipeDTO>> searchRecipes(@RequestParam String term) {
         return ResponseEntity.ok(recipeService.searchRecipes(term));
     }
 
+    /**
+     * Get recipes within a specific price range
+     */
     @GetMapping("/price-range")
     public ResponseEntity<List<RecipeDTO>> getRecipesByPriceRange(@RequestParam BigDecimal min, @RequestParam BigDecimal max) {
         return ResponseEntity.ok(recipeService.getRecipesByPriceRange(min, max));
     }
 
+    /**
+     * Calculate "What-If" scenario for pricing
+     */
     @PostMapping("/{id}/what-if")
     public ResponseEntity<?> calculateWhatIf(@PathVariable Long id, @RequestParam BigDecimal margin) {
         try {
@@ -120,11 +122,17 @@ public class RecipeController {
         }
     }
 
+    /**
+     * Get aggregated recipe statistics
+     */
     @GetMapping("/statistics")
     public ResponseEntity<RecipeStatisticsDTO> getStatistics() {
         return ResponseEntity.ok(recipeService.getRecipeStatistics());
     }
 
+    /**
+     * Export recipe details to PDF
+     */
     @PostMapping(value = "/{id}/export-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportRecipePdf(@PathVariable Long id, @RequestBody RecipePdfRequest request) {
         return recipeRepository.findById(id)
@@ -132,12 +140,12 @@ public class RecipeController {
                     byte[] pdfBytes = pdfService.generateRecipePdf(recipe, request.getSections());
                     HttpHeaders headers = new HttpHeaders();
                     headers.setContentType(MediaType.APPLICATION_PDF);
-                    
+
+                    // Sanitize drink name for filename
                     String filename = recipe.getDrinkName().replaceAll("[^a-zA-Z0-9]", "_") + ".pdf";
                     headers.setContentDispositionFormData("attachment", filename);
-                    
+
                     return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
-}
